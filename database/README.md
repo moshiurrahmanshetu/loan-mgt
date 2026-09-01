@@ -171,6 +171,12 @@ Extends `loans.status` with `'completed'` and creates `loan_payments` table for 
 
 ---
 
+## 7. Phase 6: Reports & Financial Analytics (No Schema Migration Required)
+
+Phase 6 implements reporting, portfolio summaries, overdue delinquency tracking, and CSV export without altering database schemas or creating redundant report snapshot tables. All reports query the live, transactional tables created in Phases 1–5 (`users`, `customers`, `loan_products`, `loans`, `loan_installments`, and `loan_payments`) utilizing prepared statements, efficient indexing, and aggregation.
+
+---
+
 ## How to Import via CLI (Fresh Database)
 
 ```bash

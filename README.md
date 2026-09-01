@@ -1,4 +1,4 @@
-# Loan Management System (`loan-mgt`) — Phase 5
+# Loan Management System (`loan-mgt`) — Phase 6
 
 A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**, **MySQL**, **Bootstrap 5**, and **Bootstrap Icons**.
 
@@ -68,10 +68,10 @@ loan-mgt/
 │   ├── header.php              # HTML head, CSS imports, meta tags, security headers
 │   ├── footer.php              # Footer markup, JS bundle imports
 │   ├── navbar.php              # Topbar with sidebar toggle, user badge, profile dropdown
-│   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans, Repayments)
+│   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans, Repayments, Reports)
 │   ├── auth-check.php          # Protected page access guard & no-cache headers
 │   ├── guest-check.php         # Guest guard (redirects authenticated users to dashboard)
-│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, payment & schedule math
+│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, payment, schedule math, report access & CSV sanitization
 │   └── flash.php               # Session-based alert banner system
 ├── modules/
 │   ├── dashboard/
@@ -112,14 +112,24 @@ loan-mgt/
 │   │   ├── disburse.php        # Disbursement confirmation screen with parameters & preview
 │   │   ├── process-disbursement.php # Atomic POST handler: row lock, status activation & schedule insert
 │   │   └── schedule.php        # Standalone printable repayment schedule view
-│   └── repayments/
-│       ├── index.php           # Repayment & collection dashboard, active portfolio & quick action links
-│       ├── view.php            # Loan repayment file, installment amortization ledger & payment history
-│       ├── collect.php         # Payment collection form with installment switcher & balance check
-│       ├── process-payment.php # Transactional POST handler: overpayment guard, balance update & loan completion
-│       ├── receipt.php         # Official printable payment receipt (@media print layout)
-│       ├── payment-history.php # Global payment transactions history with date/method filters & search
-│       └── overdue.php         # Overdue delinquent installments tracking with days-late calculation
+│   ├── repayments/
+│   │   ├── index.php           # Repayment & collection dashboard, active portfolio & quick action links
+│   │   ├── view.php            # Loan repayment file, installment amortization ledger & payment history
+│   │   ├── collect.php         # Payment collection form with installment switcher & balance check
+│   │   ├── process-payment.php # Transactional POST handler: overpayment guard, balance update & loan completion
+│   │   ├── receipt.php         # Official printable payment receipt (@media print layout)
+│   │   ├── payment-history.php # Global payment transactions history with date/method filters & search
+│   │   └── overdue.php         # Overdue delinquent installments tracking with days-late calculation
+│   └── reports/
+│       ├── index.php           # Reports Central Dashboard with 9 KPI cards & product breakdowns
+│       ├── loan-report.php     # Loan Applications & Portfolio report with status/product/date filters
+│       ├── disbursement-report.php # Capital disbursements released by channel and authorizing officer
+│       ├── repayment-report.php    # Collections transactions ledger by channel and collector
+│       ├── overdue-report.php      # Delinquent installments tracking with aging bands & days overdue
+│       ├── customer-report.php     # Borrower summary & lifetime borrowing vs repayments
+│       ├── portfolio-report.php    # Financial reconciliation, expected revenue, and status breakdown
+│       ├── print.php           # Universal print template (@media print stylesheet)
+│       └── export-csv.php      # Universal CSV export handler with formula injection sanitization
 ├── uploads/
 │   ├── avatars/
 │   │   └── .htaccess           # Security: Block script execution & disable directory listing
@@ -156,35 +166,11 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
 # 6. Import Phase 5: Repayments & Payment Collection Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 ```
-*(Press Enter when prompted for password if using default XAMPP credentials)*
-
-### Option B: Using phpMyAdmin
-1. Open your browser and navigate to: `http://localhost/phpmyadmin/`
-2. Click on the **Import** tab.
-3. Import `database/auth.sql` first.
-4. Import `database/customers.sql` second.
-5. Import `database/loan_products.sql` third.
-6. Import `database/loans.sql` fourth.
-7. Import `database/disbursement.sql` fifth.
-8. Import `database/payments.sql` sixth.
+*(Phase 6 does not require additional SQL schema tables; all reports query existing live transactional data).*
 
 ---
 
-## 6. Database & Application Configuration
-
-### Database Credentials (`config/database.php`)
-```php
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', '3306');
-define('DB_NAME', 'loan_mgt');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_CHARSET', 'utf8mb4');
-```
-
----
-
-## 7. Default Administrator Credentials
+## 6. Default Administrator Credentials
 
 | Field | Value |
 | :--- | :--- |
@@ -195,7 +181,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 ---
 
-## 8. Role-Based Permissions Matrix
+## 7. Role-Based Permissions Matrix
 
 | Module / Action | Admin | Manager | Loan Officer | Collector |
 | :--- | :---: | :---: | :---: | :---: |
@@ -222,31 +208,41 @@ define('DB_CHARSET', 'utf8mb4');
 | **Collect Repayment (`collect.php`)** | Yes | Yes | **Blocked** | **Yes** |
 | **View Payment History & Print Receipts** | Yes | Yes | Yes | Yes |
 | **View Overdue Delinquency Tracking** | Yes | Yes | Yes | Yes |
+| **Reports Central Dashboard (`reports/index.php`)** | Yes | Yes | Yes | Yes |
+| **Loan Applications Report (`reports/loan-report.php`)** | Yes | Yes | Yes | **Blocked** |
+| **Disbursement Report (`reports/disbursement-report.php`)** | Yes | Yes | **Blocked** | **Blocked** |
+| **Repayment Report (`reports/repayment-report.php`)** | Yes | Yes | **Blocked** | Yes |
+| **Overdue Delinquency Report (`reports/overdue-report.php`)** | Yes | Yes | **Blocked** | Yes |
+| **Customer Summary Report (`reports/customer-report.php`)** | Yes | Yes | Yes | Yes |
+| **Portfolio Summary Report (`reports/portfolio-report.php`)** | Yes | Yes | Yes | **Blocked** |
+| **CSV Export & Clean Print Layout** | Yes | Yes | Yes (Allowed) | Yes (Allowed) |
 
 ---
 
-## 9. Repayment & Collection Business Rules
+## 8. Reports & Analytics Features
 
-### Payment Application & Allocation
-* Payments are applied directly to the target installment.
-* $0 < \text{Payment Amount} \le \text{Remaining Balance}$. Overpayment is strictly rejected server-side.
-* **Partial Payment**: Updates `paid_amount`, computes `remaining_amount`, and sets installment status to `'partial'`.
-* **Full Payment**: Updates `paid_amount = installment_amount`, `remaining_amount = 0.00`, and sets installment status to `'paid'` with `paid_date = payment_date`.
+### Available Reports
+1. **Loan Applications Report**: Tracks all originated loans with status, interest methods, terms, and total payable valuations.
+2. **Disbursement Report**: Audits capital outflows released to borrowers categorized by channel and authorizing officer.
+3. **Repayment & Collections Report**: Transaction ledger of received payments with receipt references and collector stamps.
+4. **Overdue Delinquency Report**: Monitors installments where `due_date < CURDATE() AND remaining_amount > 0` with dynamic days overdue.
+5. **Customer Summary Report**: Profiles borrower history, active loan counts, total capital borrowed, and remaining debt.
+6. **Portfolio Financial Summary**: Reconciles overall portfolio yield, expected interest revenue, active balance, and channel allocations.
 
-### Automatic Loan Completion
-When all installments for a loan reach `'paid'` status (`remaining_amount == 0.00`), the loan status is automatically transitioned from `'active'` to `'completed'`. Further payment collections on completed loans are blocked.
-
-### Overdue Detection
-Installments where `due_date < CURDATE() AND remaining_amount > 0` on active loans are automatically recognized as overdue. Days overdue are computed dynamically from the current date.
+### Security & Sanitization
+* **Date Validation**: Ensures `from_date <= to_date` across all filter forms.
+* **CSV Injection Protection**: Sanitizes any cell starting with `=`, `+`, `-`, `@` with a leading single quote `'` to block spreadsheet formula execution.
+* **Direct URL Authorization**: Restricts access server-side; unauthorized roles are blocked from direct URL access.
+* **Print Stylesheet**: Clean print-optimized layouts using `@media print` without navigation or action buttons.
 
 ---
 
-## 10. Phase Roadmap
+## 9. Phase Roadmap
 
 * **Phase 1 (Completed)**: Foundation, Authentication, Session Guards, CSRF, Common Layouts, Profile & Password Security.
 * **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
 * **Phase 3 (Completed)**: Loan Products Management, Loan Application Origination, Contract Snapshots, Underwriting Workflow & Self-Approval Prevention.
 * **Phase 4 (Completed)**: Loan Disbursement, Repayment Schedule Generation, Exact Cent Rounding, Concurrency Safety, and Loan Activation.
 * **Phase 5 (Completed)**: Payment Collection, Partial & Full Payments, Overdue Tracking, Automatic Loan Completion & Printable Receipts.
-* **Phase 6 (Upcoming)**: Arrears Management & Penalty Calculations.
-* **Phase 7 (Upcoming)**: Financial Reporting & Audit Analytics.
+* **Phase 6 (Completed)**: Reports Central Dashboard, 6 Operational Reports, Filter Persistence, Print Layout, and CSV Export.
+* **Phase 7 (Upcoming)**: Arrears Management & Automated Penalty Calculations.

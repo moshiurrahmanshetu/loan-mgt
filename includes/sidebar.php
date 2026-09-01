@@ -1,12 +1,14 @@
 <?php
 /**
  * Master Sidebar Navigation Component
- * Loan Management System (loan-mgt) - Phase 5
+ * Loan Management System (loan-mgt) - Phase 6
  */
 
 require_once __DIR__ . '/functions.php';
 
 $activeNav = $activeNav ?? 'dashboard';
+$userRole  = $_SESSION['user_role'] ?? 'loan_officer';
+$canViewReports = has_role(['admin', 'manager', 'loan_officer', 'collector']);
 ?>
 <aside id="sidebar" aria-label="Main Navigation">
     <div class="sidebar-header">
@@ -55,7 +57,7 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <!-- Repayments (Active in Phase 5) -->
+        <!-- Repayments (Active) -->
         <li class="sidebar-item <?php echo $activeNav === 'repayments' ? 'active' : ''; ?>">
             <a href="<?php echo url('modules/repayments/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Repayment & Collection">
                 <i class="bi bi-calendar2-check"></i>
@@ -63,16 +65,19 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <li class="sidebar-heading"><span>Management</span></li>
+        <li class="sidebar-heading"><span>Analytics & Reports</span></li>
 
-        <!-- Reports (Future Phase Safe Placeholder) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="Financial Reports (Upcoming Phase 7)">
-                <i class="bi bi-bar-chart-line"></i>
-                <span>Reports</span>
-                <span class="sidebar-badge">Soon</span>
-            </a>
-        </li>
+        <!-- Reports (Active in Phase 6) -->
+        <?php if ($canViewReports): ?>
+            <li class="sidebar-item <?php echo $activeNav === 'reports' ? 'active' : ''; ?>">
+                <a href="<?php echo url('modules/reports/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Financial & Operational Reports">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+        <?php endif; ?>
+
+        <li class="sidebar-heading"><span>Management</span></li>
 
         <!-- Users Management (Future Phase Safe Placeholder) -->
         <li class="sidebar-item">

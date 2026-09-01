@@ -827,4 +827,56 @@ function generate_repayment_schedule(array $loan, string $disbursementDate): arr
     ];
 }
 
+/**
+ * Role Check: Whether the current user can access a specific report type.
+ *
+ * @param string $reportType 'dashboard'|'loan'|'disbursement'|'repayment'|'overdue'|'customer'|'portfolio'
+ * @return bool
+ */
+function can_access_report(string $reportType): bool
+{
+    if (!is_logged_in()) {
+        return false;
+    }
 
+    $permissions = [
+        'dashboard'    => ['admin', 'manager', 'loan_officer', 'collector'],
+        'loan'         => ['admin', 'manager', 'loan_officer'],
+        'disbursement' => ['admin', 'manager'],
+        'repayment'    => ['admin', 'manager', 'collector'],
+        'overdue'      => ['admin', 'manager', 'collector'],
+        'customer'     => ['admin', 'manager', 'loan_officer', 'collector'],
+        'portfolio'    => ['admin', 'manager', 'loan_officer'],
+    ];
+
+    $allowedRoles = $permissions[$reportType] ?? ['admin', 'manager'];
+    return has_role($allowedRoles);
+}
+
+/**
+ * Sanitizes data cell values for CSV export to prevent spreadsheet formula injection.
+ * Escapes characters (=, +, -, @, tab, CR) if they could be executed as formulas.
+ *
+ * @param mixed $value
+ * @return string
+ */
+function sanitize_csv_cell($value): string
+{
+    if ($value === null) {
+        return '';
+    }
+
+    $str = (string)$value;
+
+    // Check if begins with formula characters
+    if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+        // If it's a standard signed number like "-100" or "+50.25", allow unless it contains formula chars
+        if (is_numeric($str)) {
+            return $str;
+        }
+        // Prefix with single quote to force spreadsheet to treat as literal text
+        return "'" . $str;
+    }
+
+    return $str;
+}
