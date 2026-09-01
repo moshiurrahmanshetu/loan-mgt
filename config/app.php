@@ -11,7 +11,7 @@ if (!defined('ROOT_PATH')) {
 // Application Metadata
 define('APP_NAME', 'Loan Management System');
 define('APP_SHORT_NAME', 'LoanMgt');
-define('APP_VERSION', '3.0.0 (Phase 3)');
+define('APP_VERSION', '4.0.0 (Phase 4)');
 define('APP_ENV', 'development'); // 'development' or 'production'
 
 // Calculate Base URL dynamically for portability across XAMPP, virtual hosts, and production

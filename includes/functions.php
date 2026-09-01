@@ -457,6 +457,7 @@ function get_loan_status_badge(string $status): string
         'draft'     => 'badge-status-draft',
         'pending'   => 'badge-status-pending',
         'approved'  => 'badge-status-approved',
+        'active'    => 'badge-status-active',
         'rejected'  => 'badge-status-rejected',
         'cancelled' => 'badge-status-cancelled',
     ];
@@ -498,6 +499,17 @@ function can_approve_loans(): bool
 }
 
 /**
+ * Role Check: Whether current user can disburse approved loans.
+ * Allowed: Admin, Manager.
+ *
+ * @return bool
+ */
+function can_disburse_loans(): bool
+{
+    return has_role(['admin', 'manager']);
+}
+
+/**
  * Logic Check: Whether a given loan application can be edited by the current user.
  *
  * @param array $loan
@@ -527,6 +539,225 @@ function can_edit_loan(array $loan, ?int $currentUserId = null): bool
     }
 
     return false;
+}
+
+/**
+ * Returns human-friendly label for disbursement methods.
+ *
+ * @param string $method
+ * @return string
+ */
+function get_disbursement_method_label(string $method): string
+{
+    $labels = [
+        'cash'            => 'Cash',
+        'bank_transfer'   => 'Bank Transfer',
+        'mobile_banking'  => 'Mobile Banking',
+    ];
+    return $labels[$method] ?? ucfirst(str_replace('_', ' ', $method));
+}
+
+/**
+ * Computes exact installment count based on term, unit, and frequency.
+ *
+ * @param int $term
+ * @param string $termUnit 'days' | 'weeks' | 'months'
+ * @param string $frequency 'daily' | 'weekly' | 'biweekly' | 'monthly'
+ * @return int
+ */
+function calculate_installment_count(int $term, string $termUnit, string $frequency): int
+{
+    if ($term < 1) {
+        return 1;
+    }
+
+    if ($frequency === 'monthly') {
+        if ($termUnit === 'months') {
+            return $term;
+        } elseif ($termUnit === 'weeks') {
+            return max(1, (int)round($term / 4.33));
+        } else {
+            return max(1, (int)round($term / 30));
+        }
+    }
+
+    if ($frequency === 'biweekly') {
+        if ($termUnit === 'weeks') {
+            return max(1, (int)ceil($term / 2));
+        } elseif ($termUnit === 'months') {
+            return $term * 2;
+        } else {
+            return max(1, (int)round($term / 14));
+        }
+    }
+
+    if ($frequency === 'weekly') {
+        if ($termUnit === 'weeks') {
+            return $term;
+        } elseif ($termUnit === 'months') {
+            return $term * 4;
+        } else {
+            return max(1, (int)round($term / 7));
+        }
+    }
+
+    if ($frequency === 'daily') {
+        if ($termUnit === 'days') {
+            return $term;
+        } elseif ($termUnit === 'weeks') {
+            return $term * 7;
+        } else {
+            return $term * 30;
+        }
+    }
+
+    return $term;
+}
+
+/**
+ * Generates an exact-cent mathematical repayment schedule based on loan snapshot terms and disbursement date.
+ *
+ * @param array $loan
+ * @param string $disbursementDate 'YYYY-MM-DD'
+ * @return array
+ */
+function generate_repayment_schedule(array $loan, string $disbursementDate): array
+{
+    $principal    = (float)$loan['requested_amount'];
+    $interestRate = (float)$loan['interest_rate'];
+    $method       = $loan['interest_method'] ?? 'flat';
+    $term         = (int)$loan['term'];
+    $termUnit     = $loan['term_unit'] ?? 'months';
+    $frequency    = $loan['repayment_frequency'] ?? 'monthly';
+
+    $count = calculate_installment_count($term, $termUnit, $frequency);
+    $installments = [];
+
+    $baseDate = new DateTime($disbursementDate);
+
+    if ($method === 'flat') {
+        $totalInterest = round($principal * ($interestRate / 100), 2);
+        $totalPayable  = round($principal + $totalInterest, 2);
+
+        $basePrincipal = round($principal / $count, 2);
+        $baseInterest  = round($totalInterest / $count, 2);
+
+        $accPrincipal = 0.0;
+        $accInterest  = 0.0;
+
+        for ($i = 1; $i <= $count; $i++) {
+            $dueDate = clone $baseDate;
+            if ($frequency === 'daily') {
+                $dueDate->modify("+{$i} day");
+            } elseif ($frequency === 'weekly') {
+                $days = $i * 7;
+                $dueDate->modify("+{$days} day");
+            } elseif ($frequency === 'biweekly') {
+                $days = $i * 14;
+                $dueDate->modify("+{$days} day");
+            } else {
+                $dueDate->modify("+{$i} month");
+            }
+
+            if ($i < $count) {
+                $p = $basePrincipal;
+                $int = $baseInterest;
+                $accPrincipal += $p;
+                $accInterest  += $int;
+            } else {
+                // Exact cent rounding reconciliation
+                $p = round($principal - $accPrincipal, 2);
+                $int = round($totalInterest - $accInterest, 2);
+            }
+
+            $instAmount = round($p + $int, 2);
+
+            $installments[] = [
+                'installment_number' => $i,
+                'due_date'           => $dueDate->format('Y-m-d'),
+                'principal_amount'   => $p,
+                'interest_amount'    => $int,
+                'installment_amount' => $instAmount,
+                'paid_amount'        => 0.00,
+                'remaining_amount'   => $instAmount,
+                'status'             => 'pending',
+            ];
+        }
+
+        return [
+            'installments'    => $installments,
+            'total_principal' => $principal,
+            'total_interest'  => $totalInterest,
+            'total_payable'   => $totalPayable,
+            'count'           => $count,
+        ];
+    }
+
+    // Reducing balance implementation
+    $annualRate = $interestRate / 100;
+    $periodsPerYear = match ($frequency) {
+        'daily'    => 365,
+        'weekly'   => 52,
+        'biweekly' => 26,
+        'monthly'  => 12,
+        default    => 12,
+    };
+    $r = $annualRate / $periodsPerYear;
+
+    if ($r > 0) {
+        $pmt = $principal * ($r * pow(1 + $r, $count)) / (pow(1 + $r, $count) - 1);
+    } else {
+        $pmt = $principal / $count;
+    }
+
+    $balance = $principal;
+    $totalInterest = 0.0;
+
+    for ($i = 1; $i <= $count; $i++) {
+        $dueDate = clone $baseDate;
+        if ($frequency === 'daily') {
+            $dueDate->modify("+{$i} day");
+        } elseif ($frequency === 'weekly') {
+            $days = $i * 7;
+            $dueDate->modify("+{$days} day");
+        } elseif ($frequency === 'biweekly') {
+            $days = $i * 14;
+            $dueDate->modify("+{$days} day");
+        } else {
+            $dueDate->modify("+{$i} month");
+        }
+
+        $int = round($balance * $r, 2);
+        if ($i < $count) {
+            $p = round($pmt - $int, 2);
+            $balance = round($balance - $p, 2);
+        } else {
+            $p = $balance;
+            $balance = 0.00;
+        }
+
+        $instAmount = round($p + $int, 2);
+        $totalInterest += $int;
+
+        $installments[] = [
+            'installment_number' => $i,
+            'due_date'           => $dueDate->format('Y-m-d'),
+            'principal_amount'   => $p,
+            'interest_amount'    => $int,
+            'installment_amount' => $instAmount,
+            'paid_amount'        => 0.00,
+            'remaining_amount'   => $instAmount,
+            'status'             => 'pending',
+        ];
+    }
+
+    return [
+        'installments'    => $installments,
+        'total_principal' => $principal,
+        'total_interest'  => round($totalInterest, 2),
+        'total_payable'   => round($principal + $totalInterest, 2),
+        'count'           => $count,
+    ];
 }
 
 

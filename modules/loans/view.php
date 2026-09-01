@@ -1,7 +1,7 @@
 <?php
 /**
  * Loan Application View
- * Loan Management System (loan-mgt) - Phase 3
+ * Loan Management System (loan-mgt) - Phase 4
  */
 
 $pageTitle = 'Loan Details';
@@ -29,12 +29,14 @@ $stmt = $db->prepare('
            c.status AS customer_status,
            lp.name AS current_product_name, lp.product_code AS current_product_code,
            u.name AS creator_name, u.role AS creator_role,
-           ua.name AS approver_name, ua.role AS approver_role
+           ua.name AS approver_name, ua.role AS approver_role,
+           ud.name AS disburser_name, ud.role AS disburser_role
     FROM loans l 
     JOIN customers c ON l.customer_id = c.id 
     LEFT JOIN loan_products lp ON l.loan_product_id = lp.id 
     LEFT JOIN users u ON l.created_by = u.id 
     LEFT JOIN users ua ON l.approved_by = ua.id 
+    LEFT JOIN users ud ON l.disbursed_by = ud.id 
     WHERE l.id = :id 
     LIMIT 1
 ');
@@ -49,9 +51,11 @@ if (!$loan) {
 $currentUserId   = auth_id();
 $isCreator       = ($currentUserId !== null && (int)$loan['created_by'] === (int)$currentUserId);
 $canApproveRole  = can_approve_loans();
+$canDisburseRole = can_disburse_loans();
 $isPending       = ($loan['status'] === 'pending');
 $isDraft         = ($loan['status'] === 'draft');
 $isApproved      = ($loan['status'] === 'approved');
+$isActive        = ($loan['status'] === 'active');
 $isRejected      = ($loan['status'] === 'rejected');
 $isCancelled     = ($loan['status'] === 'cancelled');
 
@@ -61,6 +65,28 @@ $selfApprovalBlocked = $canApproveRole && $isPending && $isCreator;
 
 $isEditable = can_edit_loan($loan, $currentUserId);
 $customerPhotoUrl = get_customer_photo_url($loan['customer_photo'], $loan['customer_name']);
+
+// Fetch installments if active
+$installments = [];
+$totalPrincipal = 0.0;
+$totalInterest = 0.0;
+$totalInstallment = 0.0;
+$totalPaid = 0.0;
+$totalRemaining = 0.0;
+
+if ($isActive) {
+    $instStmt = $db->prepare('SELECT * FROM loan_installments WHERE loan_id = :id ORDER BY installment_number ASC');
+    $instStmt->execute([':id' => $loanId]);
+    $installments = $instStmt->fetchAll();
+
+    foreach ($installments as $inst) {
+        $totalPrincipal   += (float)$inst['principal_amount'];
+        $totalInterest    += (float)$inst['interest_amount'];
+        $totalInstallment += (float)$inst['installment_amount'];
+        $totalPaid        += (float)$inst['paid_amount'];
+        $totalRemaining   += (float)$inst['remaining_amount'];
+    }
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -88,6 +114,18 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="<?php echo url('modules/loans/index.php'); ?>" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Loan Portfolio
         </a>
+
+        <?php if ($isApproved && $canDisburseRole): ?>
+            <a href="<?php echo url('modules/loans/disburse.php?id=' . $loan['id']); ?>" class="btn btn-primary">
+                <i class="bi bi-cash-coin me-1"></i> Disburse Loan
+            </a>
+        <?php endif; ?>
+
+        <?php if ($isActive): ?>
+            <a href="<?php echo url('modules/loans/schedule.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-calendar-check me-1"></i> View Schedule
+            </a>
+        <?php endif; ?>
 
         <?php if ($isEditable): ?>
             <a href="<?php echo url('modules/loans/edit.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary">
@@ -179,10 +217,10 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <!-- Application Audit Card -->
+        <!-- Application & Disbursement Audit Card -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
-                <h4 class="h6 mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i> Application Audit Trail</h4>
+                <h4 class="h6 mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i> Contract Audit Trail</h4>
             </div>
             <div class="card-body p-3 small">
                 <div class="d-flex justify-content-between mb-2">
@@ -200,7 +238,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <span class="text-dark"><?php echo date('M d, Y g:i a', strtotime($loan['created_at'])); ?></span>
                 </div>
 
-                <?php if ($isApproved): ?>
+                <?php if ($isApproved || $isActive): ?>
                     <hr class="my-2">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Approved By:</span>
@@ -208,10 +246,32 @@ require_once __DIR__ . '/../../includes/header.php';
                             <?php echo !empty($loan['approver_name']) ? e($loan['approver_name']) . ' (' . e(get_role_label($loan['approver_role'] ?? '')) . ')' : 'Management'; ?>
                         </span>
                     </div>
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Approval Date:</span>
                         <span class="text-success fw-semibold">
                             <?php echo !empty($loan['approved_at']) ? date('M d, Y g:i a', strtotime($loan['approved_at'])) : '-'; ?>
+                        </span>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($isActive): ?>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Disbursed By:</span>
+                        <span class="fw-bold text-primary">
+                            <?php echo !empty($loan['disburser_name']) ? e($loan['disburser_name']) . ' (' . e(get_role_label($loan['disburser_role'] ?? '')) . ')' : 'Finance Dept'; ?>
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Disbursement Date:</span>
+                        <span class="text-dark fw-semibold">
+                            <?php echo !empty($loan['disbursement_date']) ? date('F j, Y', strtotime($loan['disbursement_date'])) : '-'; ?>
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Payment Channel:</span>
+                        <span class="badge bg-light text-dark border">
+                            <?php echo e(get_disbursement_method_label($loan['disbursement_method'] ?? 'cash')); ?>
                         </span>
                     </div>
                 <?php endif; ?>
@@ -231,9 +291,9 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
-    <!-- Right Column: Loan Terms, Financial Breakdown, and Decision Engine -->
+    <!-- Right Column: Loan Terms, Financial Breakdown, and Schedule Engine -->
     <div class="col-12 col-lg-8">
-        <!-- 1. Underwriting Decision Card (for Admin/Manager when Pending) -->
+        <!-- Underwriting Decision Panel (for Admin/Manager when Pending) -->
         <?php if ($canApproveThisLoan): ?>
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning bg-opacity-10 text-dark py-3">
@@ -244,7 +304,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         Review the applicant's requested terms and financial breakdown below. As an authorized loan officer/manager, record your underwriting determination:
                     </p>
                     <div class="d-flex flex-wrap gap-2">
-                        <!-- Approve Form -->
                         <form action="<?php echo url('modules/loans/approve.php'); ?>" method="POST" class="d-inline" onsubmit="return confirm('Approve loan application <?php echo e($loan['loan_number']); ?> for <?php echo format_currency($loan['requested_amount']); ?>?');">
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="id" value="<?php echo (int)$loan['id']; ?>">
@@ -253,7 +312,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             </button>
                         </form>
 
-                        <!-- Reject Trigger / Modal Button -->
                         <button type="button" class="btn btn-outline-danger px-4" data-bs-toggle="modal" data-bs-target="#rejectLoanModal">
                             <i class="bi bi-x-circle me-1"></i> Reject Application
                         </button>
@@ -291,7 +349,32 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         <?php endif; ?>
 
-        <!-- 2. Loan Terms Snapshot -->
+        <!-- Disbursement Callout for Approved Loans -->
+        <?php if ($isApproved && $canDisburseRole): ?>
+            <div class="card shadow-sm mb-4 border-success">
+                <div class="card-header bg-success bg-opacity-10 text-success py-3 d-flex justify-content-between align-items-center">
+                    <h4 class="h6 mb-0 fw-bold"><i class="bi bi-cash-stack me-2"></i> Ready for Disbursement</h4>
+                    <span class="badge bg-success">Underwriting Approved</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                    <div>
+                        <p class="small text-dark mb-1 fw-semibold">
+                            Loan application approved for <?php echo format_currency($loan['requested_amount']); ?>.
+                        </p>
+                        <p class="small text-muted mb-0">
+                            Proceed to finalize payment release, choose disbursement channel, and activate the installment schedule.
+                        </p>
+                    </div>
+                    <div>
+                        <a href="<?php echo url('modules/loans/disburse.php?id=' . $loan['id']); ?>" class="btn btn-primary px-4 py-2 text-nowrap fw-semibold">
+                            <i class="bi bi-cash-coin me-1"></i> Disburse Loan
+                        </a>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Contract Terms Snapshot -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
                 <h4 class="h6 mb-0 fw-bold"><i class="bi bi-bookmark-star-fill me-2 text-primary"></i> Contract Terms Snapshot</h4>
@@ -333,7 +416,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <!-- 3. Financial Breakdown -->
+        <!-- Financial Breakdown -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
                 <h4 class="h6 mb-0 fw-bold"><i class="bi bi-cash-stack me-2 text-primary"></i> Financial Calculation Breakdown</h4>
@@ -368,19 +451,67 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
                 </div>
-
-                <div class="mt-3 text-muted small">
-                    <i class="bi bi-info-circle me-1"></i>
-                    <?php if ($loan['interest_method'] === 'flat'): ?>
-                        Flat interest calculation applied. Upfront processing fee is collected separately upon loan disbursement.
-                    <?php else: ?>
-                        Reducing balance product selected. Final amortization schedules will be dynamically generated upon loan disbursement.
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
 
-        <!-- 4. Purpose & Underwriting Notes -->
+        <!-- Active Repayment Schedule Section (Phase 4) -->
+        <?php if ($isActive && !empty($installments)): ?>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h4 class="h6 mb-0 fw-bold"><i class="bi bi-calendar-check-fill me-2 text-primary"></i> Active Repayment Schedule</h4>
+                    <a href="<?php echo url('modules/loans/schedule.php?id=' . $loan['id']); ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-printer me-1"></i> Print Full Schedule
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                            <thead class="table-light text-muted text-uppercase sticky-top" style="font-size: 0.75rem;">
+                                <tr>
+                                    <th class="ps-3 py-2">#</th>
+                                    <th class="py-2">Due Date</th>
+                                    <th class="py-2 text-end">Principal</th>
+                                    <th class="py-2 text-end">Interest</th>
+                                    <th class="py-2 text-end">Installment</th>
+                                    <th class="py-2 text-end">Paid</th>
+                                    <th class="py-2 text-end">Remaining</th>
+                                    <th class="pe-3 py-2 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($installments as $inst): ?>
+                                    <tr>
+                                        <td class="ps-3 font-monospace text-muted"><?php echo $inst['installment_number']; ?></td>
+                                        <td class="text-nowrap"><?php echo date('M d, Y', strtotime($inst['due_date'])); ?></td>
+                                        <td class="text-end"><?php echo format_currency($inst['principal_amount']); ?></td>
+                                        <td class="text-end text-muted"><?php echo format_currency($inst['interest_amount']); ?></td>
+                                        <td class="text-end fw-semibold text-dark"><?php echo format_currency($inst['installment_amount']); ?></td>
+                                        <td class="text-end text-success"><?php echo format_currency($inst['paid_amount']); ?></td>
+                                        <td class="text-end fw-semibold text-danger"><?php echo format_currency($inst['remaining_amount']); ?></td>
+                                        <td class="pe-3 text-center">
+                                            <span class="badge badge-status-pending"><?php echo e(ucfirst($inst['status'])); ?></span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot class="table-light fw-bold sticky-bottom">
+                                <tr>
+                                    <td colspan="2" class="ps-3">Totals:</td>
+                                    <td class="text-end"><?php echo format_currency($totalPrincipal); ?></td>
+                                    <td class="text-end"><?php echo format_currency($totalInterest); ?></td>
+                                    <td class="text-end text-primary"><?php echo format_currency($totalInstallment); ?></td>
+                                    <td class="text-end text-success"><?php echo format_currency($totalPaid); ?></td>
+                                    <td class="text-end text-danger"><?php echo format_currency($totalRemaining); ?></td>
+                                    <td class="pe-3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Purpose & Remarks -->
         <div class="card shadow-sm mb-0">
             <div class="card-header bg-white py-3">
                 <h4 class="h6 mb-0 fw-bold"><i class="bi bi-file-text me-2 text-primary"></i> Application Purpose & Remarks</h4>

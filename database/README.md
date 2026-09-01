@@ -13,6 +13,7 @@ Step 1: database/auth.sql           (Creates database & users table)
 Step 2: database/customers.sql      (Creates customers table with FK to users.id)
 Step 3: database/loan_products.sql  (Creates loan_products table with FK to users.id)
 Step 4: database/loans.sql          (Creates loans table with FK to customers, loan_products, users)
+Step 5: database/disbursement.sql   (Extends loans table & creates loan_installments with FK to loans.id)
 ```
 
 ---
@@ -73,7 +74,7 @@ Creates the `loan_products` table defining product rules, interest methods, limi
 * `description` TEXT NULL
 * `minimum_amount` DECIMAL(12, 2) NOT NULL DEFAULT 1000.00
 * `maximum_amount` DECIMAL(12, 2) NOT NULL DEFAULT 50000.00
-* `interest_rate` DECIMAL(5, 2) NOT NULL DEFAULT 10.00 (Annual/Term Percentage)
+* `interest_rate` DECIMAL(5, 2) NOT NULL DEFAULT 10.00 (Percentage)
 * `interest_method` ENUM('flat', 'reducing_balance') NOT NULL DEFAULT 'flat'
 * `term_min` INT UNSIGNED NOT NULL DEFAULT 1
 * `term_max` INT UNSIGNED NOT NULL DEFAULT 12
@@ -108,7 +109,7 @@ Creates the `loans` table storing loan applications, product parameter snapshots
 * `estimated_total_payable` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
 * `purpose` TEXT NULL
 * `application_date` DATE NOT NULL
-* `status` ENUM('draft', 'pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'
+* `status` ENUM('draft', 'pending', 'approved', 'active', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'
 * `notes` TEXT NULL
 * `rejection_reason` TEXT NULL
 * `created_by` INT UNSIGNED NULL (FK -> `users.id`)
@@ -116,6 +117,36 @@ Creates the `loans` table storing loan applications, product parameter snapshots
 * `approved_at` DATETIME NULL
 * `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 * `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+---
+
+## 5. Phase 4 Schema: `disbursement.sql`
+
+Extends the `loans` table with disbursement audit fields and creates `loan_installments` for repayment schedules.
+
+### Extended Columns on `loans`:
+* `status`: Extended with `'active'`
+* `disbursement_date` DATE NULL
+* `disbursed_amount` DECIMAL(12, 2) NULL
+* `disbursement_method` ENUM('cash', 'bank_transfer', 'mobile_banking') NULL
+* `disbursed_by` INT UNSIGNED NULL (FK -> `users.id`)
+* `disbursed_at` DATETIME NULL
+
+### Table: `loan_installments`
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `loan_id` INT UNSIGNED NOT NULL (FK -> `loans.id` ON DELETE CASCADE)
+* `installment_number` INT UNSIGNED NOT NULL
+* `due_date` DATE NOT NULL
+* `principal_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `interest_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `installment_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `paid_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `remaining_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `status` ENUM('pending', 'paid', 'partial', 'overdue') NOT NULL DEFAULT 'pending'
+* `paid_date` DATE NULL
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+* Unique Constraint: `(loan_id, installment_number)`
 
 ---
 
@@ -133,15 +164,7 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/loan_products.sql
 
 # 4. Import Phase 3: Loan Applications Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
+
+# 5. Import Phase 4: Disbursement & Repayment Schedule Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
 ```
-
----
-
-## Default Development Credentials
-
-| Field | Value |
-| :--- | :--- |
-| **Email** | `admin@loanmgt.com` |
-| **Password** | `Admin@123456` |
-| **Role** | `admin` |
-| **Status** | `active` |

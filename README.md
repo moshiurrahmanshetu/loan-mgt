@@ -1,4 +1,4 @@
-# Loan Management System (`loan-mgt`) — Phase 3
+# Loan Management System (`loan-mgt`) — Phase 4
 
 A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**, **MySQL**, **Bootstrap 5**, and **Bootstrap Icons**.
 
@@ -61,7 +61,8 @@ loan-mgt/
 │   ├── customers.sql           # Step 2: Customers schema (FK to users.id)
 │   ├── loan_products.sql       # Step 3: Loan product templates (FK to users.id)
 │   ├── loans.sql               # Step 4: Loan applications & contract snapshot (FK to customers, loan_products, users)
-│   └── README.md               # Database setup and 4-step import sequence
+│   ├── disbursement.sql        # Step 5: Loan disbursement columns & loan_installments schedule table
+│   └── README.md               # Database setup and 5-step import sequence
 ├── includes/
 │   ├── header.php              # HTML head, CSS imports, meta tags, security headers
 │   ├── footer.php              # Footer markup, JS bundle imports
@@ -69,11 +70,11 @@ loan-mgt/
 │   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans)
 │   ├── auth-check.php          # Protected page access guard & no-cache headers
 │   ├── guest-check.php         # Guest guard (redirects authenticated users to dashboard)
-│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, calculation preview
+│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, schedule math
 │   └── flash.php               # Session-based alert banner system
 ├── modules/
 │   ├── dashboard/
-│   │   └── index.php           # System dashboard with live loan, customer & product metrics
+│   │   └── index.php           # System dashboard with live loan, customer & disbursement metrics
 │   ├── profile/
 │   │   ├── index.php           # User profile view (details, security, avatar)
 │   │   ├── update.php          # POST handler for updating name/email/phone
@@ -101,12 +102,15 @@ loan-mgt/
 │       ├── index.php           # Loan applications listing, search, status filter & pagination
 │       ├── create.php          # Interactive loan application form with real-time preview
 │       ├── store.php           # Application POST handler (Draft vs Submit, full server validation)
-│       ├── view.php            # Comprehensive loan application file, terms snapshot & audit
+│       ├── view.php            # Comprehensive loan file, snapshot terms, disbursement audit & schedule
 │       ├── edit.php            # Edit application form (Draft / Pending only)
 │       ├── update.php          # Update application POST handler
 │       ├── cancel.php          # Cancel draft/pending application handler
 │       ├── approve.php         # Underwriting approval handler (Admin/Manager, self-approval blocked)
-│       └── reject.php          # Underwriting rejection handler (records reason)
+│       ├── reject.php          # Underwriting rejection handler (records reason)
+│       ├── disburse.php        # Disbursement confirmation screen with parameters & preview
+│       ├── process-disbursement.php # Atomic POST handler: row lock, status activation & schedule insert
+│       └── schedule.php        # Standalone printable repayment schedule view
 ├── uploads/
 │   ├── avatars/
 │   │   └── .htaccess           # Security: Block script execution & disable directory listing
@@ -136,6 +140,9 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/loan_products.sql
 
 # 4. Import Phase 3: Loan Applications Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
+
+# 5. Import Phase 4: Disbursement & Repayment Schedule Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
 ```
 *(Press Enter when prompted for password if using default XAMPP credentials)*
 
@@ -146,6 +153,7 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 4. Import `database/customers.sql` second.
 5. Import `database/loan_products.sql` third.
 6. Import `database/loans.sql` fourth.
+7. Import `database/disbursement.sql` fifth.
 
 ---
 
@@ -198,23 +206,26 @@ define('DB_CHARSET', 'utf8mb4');
 | **Approve / Reject Loan Application** | Yes | Yes | No | No |
 | **Self-Approval of Own Originated Loan** | **Blocked** | **Blocked** | **Blocked** | **Blocked** |
 | **Cancel Draft / Pending Loan** | Yes | Yes | Yes (Own) | No |
+| **Disburse Approved Loan (`disburse.php`)** | Yes | Yes | No | No |
+| **View Repayment Schedule (`schedule.php`)** | Yes | Yes | Yes | Yes |
 
 ---
 
-## 9. Financial Calculation Methodology & Snapshot Safety
+## 9. Financial Calculation & Disbursement Safety
 
-### Flat Rate Calculations
-* **Interest**: `Principal × (Interest Rate / 100)`
-* **Processing Fee**: `Principal × (Processing Fee Rate / 100)`
-* **Estimated Total Payable**: `Principal + Interest`
+### Flat Rate Calculations & Exact Cent Balancing
+* **Total Interest**: `Principal × (Interest Rate / 100)`
+* **Total Payable**: `Principal + Total Interest`
+* **Installment Breakdown**:
+  * Base Principal = `round(Principal / Installments, 2)`
+  * Base Interest = `round(Total Interest / Installments, 2)`
+  * Final installment absorbs any rounding delta: $\sum \text{Installments} \equiv \text{Total Payable}$.
 * *Processing fee is collected upfront and displayed separately from repayment obligations.*
 
-### Reducing Balance Calculations
-* Identifies the reducing balance method transparently.
-* Preview calculations explicitly note that amortization schedules will be dynamically generated upon loan disbursement.
-
-### Contract Snapshot Guarantee
-When a loan application is created, an immutable snapshot of all product parameters (`interest_rate`, `interest_method`, `term_unit`, `repayment_frequency`, `processing_fee_rate`, `estimated_interest_amount`, `processing_fee_amount`, `estimated_total_payable`) is stored directly in the `loans` record. Subsequent modifications to the Loan Product template will never alter existing loan contracts.
+### Concurrency & Re-Disbursement Lock
+Loan disbursement runs inside an atomic MySQL transaction with `SELECT ... FOR UPDATE` row locking.
+- Only loans with `status = 'approved'` and `disbursement_date IS NULL` are eligible.
+- Double disbursement attempts are trapped and safely rejected with 0 duplicate schedules.
 
 ---
 
@@ -223,7 +234,7 @@ When a loan application is created, an immutable snapshot of all product paramet
 * **Phase 1 (Completed)**: Foundation, Authentication, Session Guards, CSRF, Common Layouts, Profile & Password Security.
 * **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
 * **Phase 3 (Completed)**: Loan Products Management, Loan Application Origination, Contract Snapshots, Underwriting Workflow & Self-Approval Prevention.
-* **Phase 4 (Upcoming)**: Loan Disbursement & Payment Issuance Workflows.
-* **Phase 5 (Upcoming)**: Installment Schedules, Repayments & Collection Tracking (`repayments.sql`).
+* **Phase 4 (Completed)**: Loan Disbursement, Repayment Schedule Generation, Exact Cent Rounding, Concurrency Safety, and Loan Activation.
+* **Phase 5 (Upcoming)**: Payment Collections & Repayment Ledger (`repayments.sql`).
 * **Phase 6 (Upcoming)**: Arrears & Delinquency Management.
 * **Phase 7 (Upcoming)**: Financial Reporting & Audit Analytics.

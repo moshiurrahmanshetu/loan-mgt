@@ -34,7 +34,7 @@ if ($search !== '') {
     $params[':search_code']  = $wildcard;
 }
 
-$validStatuses = ['draft', 'pending', 'approved', 'rejected', 'cancelled'];
+$validStatuses = ['draft', 'pending', 'approved', 'active', 'rejected', 'cancelled'];
 if (in_array($statusFilter, $validStatuses, true)) {
     $whereClauses[] = 'l.status = :status';
     $params[':status'] = $statusFilter;
@@ -134,7 +134,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 <select name="status" class="form-select">
                     <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Statuses</option>
                     <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending Review</option>
-                    <option value="approved" <?php echo $statusFilter === 'approved' ? 'selected' : ''; ?>>Approved</option>
+                    <option value="approved" <?php echo $statusFilter === 'approved' ? 'selected' : ''; ?>>Approved (Ready)</option>
+                    <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>>Active (Disbursed)</option>
                     <option value="draft" <?php echo $statusFilter === 'draft' ? 'selected' : ''; ?>>Drafts</option>
                     <option value="rejected" <?php echo $statusFilter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
                     <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
@@ -170,7 +171,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th class="py-3">Term & Frequency</th>
                         <th class="py-3">Application Date</th>
                         <th class="py-3 text-center">Status</th>
-                        <th class="pe-3 py-3 text-end" style="min-width: 120px;">Actions</th>
+                        <th class="pe-3 py-3 text-end" style="min-width: 130px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -222,6 +223,18 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <a href="<?php echo url('modules/loans/view.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary" title="View Application" data-bs-toggle="tooltip">
                                             <i class="bi bi-eye"></i>
                                         </a>
+
+                                        <?php if ($loan['status'] === 'approved' && can_disburse_loans()): ?>
+                                            <a href="<?php echo url('modules/loans/disburse.php?id=' . $loan['id']); ?>" class="btn btn-outline-primary" title="Disburse Loan" data-bs-toggle="tooltip">
+                                                <i class="bi bi-cash-coin"></i>
+                                            </a>
+                                        <?php endif; ?>
+
+                                        <?php if ($loan['status'] === 'active'): ?>
+                                            <a href="<?php echo url('modules/loans/schedule.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary" title="Repayment Schedule" data-bs-toggle="tooltip">
+                                                <i class="bi bi-calendar-check"></i>
+                                            </a>
+                                        <?php endif; ?>
 
                                         <?php if ($isEditable): ?>
                                             <a href="<?php echo url('modules/loans/edit.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary" title="Edit Application" data-bs-toggle="tooltip">
