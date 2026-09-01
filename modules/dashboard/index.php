@@ -25,6 +25,13 @@ $lastLoginDisplay = !empty($userRecord['last_login'])
     ? date('F j, Y, g:i a', strtotime($userRecord['last_login'])) 
     : 'First session recorded';
 
+// Fetch customer summary metrics for Phase 2
+$totalCustStmt = $db->query('SELECT COUNT(*) FROM customers');
+$totalCustomers = (int)$totalCustStmt->fetchColumn();
+
+$activeCustStmt = $db->query("SELECT COUNT(*) FROM customers WHERE status = 'active'");
+$activeCustomers = (int)$activeCustStmt->fetchColumn();
+
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -38,7 +45,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <span class="badge badge-role <?php echo $roleBadgeClass; ?>"><?php echo e($roleLabel); ?></span>
                 </div>
                 <p class="text-muted mb-0 small">
-                    You are logged in to the <strong><?php echo e(APP_NAME); ?></strong> core administrative portal.
+                    You are logged in to the <strong><?php echo e(APP_NAME); ?></strong> administrative portal.
                 </p>
             </div>
             <div class="text-md-end">
@@ -49,18 +56,32 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- System Status Grid (Accurate Phase 1 metrics, no fake loan numbers) -->
+<!-- System & Customer Metrics Grid -->
 <div class="row g-3 mb-4">
-    <!-- Account Status Card -->
+    <!-- Total Customers Card (Phase 2 Metric) -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Account Status</span>
+                    <span class="text-muted small text-uppercase fw-semibold">Total Borrowers</span>
+                    <i class="bi bi-people-fill text-primary fs-5"></i>
+                </div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($totalCustomers); ?></div>
+                <div class="small text-muted">Registered customer profiles</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Customers Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 mb-0 shadow-sm">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Active Customers</span>
                     <span class="badge badge-status-active">Active</span>
                 </div>
-                <div class="h5 mb-1 fw-bold text-dark"><?php echo e(ucfirst($userRecord['status'])); ?></div>
-                <div class="small text-muted">Authorized user access</div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($activeCustomers); ?></div>
+                <div class="small text-muted">Eligible for loan issuance</div>
             </div>
         </div>
     </div>
@@ -70,30 +91,16 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Assigned Role</span>
+                    <span class="text-muted small text-uppercase fw-semibold">Your Access Level</span>
                     <i class="bi bi-person-badge text-primary fs-5"></i>
                 </div>
                 <div class="h5 mb-1 fw-bold text-dark"><?php echo e($roleLabel); ?></div>
-                <div class="small text-muted">Role permissions applied</div>
+                <div class="small text-muted">Customer & security rules applied</div>
             </div>
         </div>
     </div>
 
-    <!-- Registered Email Card -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 mb-0 shadow-sm">
-            <div class="card-body p-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Primary Contact</span>
-                    <i class="bi bi-envelope-check text-success fs-5"></i>
-                </div>
-                <div class="h6 mb-1 fw-bold text-dark text-truncate" title="<?php echo e($userRecord['email']); ?>"><?php echo e($userRecord['email']); ?></div>
-                <div class="small text-muted">Verified login email</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Session Security Card -->
+    <!-- Session Guard Card -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
@@ -102,7 +109,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="bi bi-shield-lock-fill text-primary fs-5"></i>
                 </div>
                 <div class="h5 mb-1 fw-bold text-dark">Protected</div>
-                <div class="small text-muted">CSRF & Session Lock active</div>
+                <div class="small text-muted">CSRF & Session lock active</div>
             </div>
         </div>
     </div>
@@ -117,55 +124,55 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="bi bi-layers text-primary fs-5"></i>
                     <h3 class="h6 mb-0 fw-bold">System Scope & Phase Roadmap</h3>
                 </div>
-                <span class="badge bg-primary px-2.5 py-1.5">Phase 1 Complete</span>
+                <span class="badge bg-primary px-2.5 py-1.5">Phase 2 Active</span>
             </div>
             <div class="card-body p-4">
                 <p class="text-muted">
-                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. This installation is currently running <strong>Phase 1: Project Foundation & Authentication System</strong>.
+                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. The system is currently running <strong>Phase 2: Customer Management Module</strong>.
                 </p>
                 <div class="p-3 bg-light rounded border mb-4">
-                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Module Notice</div>
+                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Roadmap Notice</div>
                     <p class="text-muted small mb-0">
-                        Operational modules for <em>Customer Management</em>, <em>Loan Origination</em>, <em>Approval Workflows</em>, <em>Installments & Repayment Collection</em>, and <em>Financial Analytics</em> will be introduced in subsequent modular phases.
+                        Borrower profiles, contact registries, and emergency contact verifications are now live. Loan Products, Loan Origination, Approval Workflows, and Repayment Schedules will be enabled in subsequent modular phases.
                     </p>
                 </div>
 
-                <h4 class="h6 fw-bold text-dark mb-3">Implemented In Phase 1</h4>
+                <h4 class="h6 fw-bold text-dark mb-3">Implemented Modules & Capabilities</h4>
                 <div class="row g-2 small">
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Raw PHP 8+ & MySQL PDO Layer</span>
+                            <span>Authentication & Session System (Phase 1)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Safe Session Regeneration & Auth Guards</span>
+                            <span>Admin Profile & Password Security (Phase 1)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>CSRF Token Protection on all Forms</span>
+                            <span>Customer Profile CRUD & Server Search (Phase 2)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Responsive Collapsible Sidebar (localStorage)</span>
+                            <span>Customer Photo Sandbox with .htaccess (Phase 2)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Profile Management (Details, Avatar, Password)</span>
+                            <span>Sequential Code Generator (CUS-XXXXXX)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Secure Upload Sandbox with .htaccess protection</span>
+                            <span>Role-Based Access Enforcement (Admin/Mgr/Officer/Collector)</span>
                         </div>
                     </div>
                 </div>
@@ -184,34 +191,36 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
             <div class="card-body p-3">
                 <div class="list-group list-group-flush">
+                    <a href="<?php echo url('modules/customers/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-people text-primary fs-5"></i>
+                            <div>
+                                <div class="fw-semibold text-dark small">Customer Portfolio</div>
+                                <div class="text-muted small">View, filter & search borrowers</div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted small"></i>
+                    </a>
+
+                    <?php if (can_manage_customers()): ?>
+                        <a href="<?php echo url('modules/customers/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-person-plus text-success fs-5"></i>
+                                <div>
+                                    <div class="fw-semibold text-dark small">Add Customer</div>
+                                    <div class="text-muted small">Register new borrower</div>
+                                </div>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted small"></i>
+                        </a>
+                    <?php endif; ?>
+
                     <a href="<?php echo url('modules/profile/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-person-circle text-primary fs-5"></i>
                             <div>
                                 <div class="fw-semibold text-dark small">My Profile</div>
-                                <div class="text-muted small">Update name, email & phone</div>
-                            </div>
-                        </div>
-                        <i class="bi bi-chevron-right text-muted small"></i>
-                    </a>
-
-                    <a href="<?php echo url('modules/profile/index.php#avatar-card'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-camera text-primary fs-5"></i>
-                            <div>
-                                <div class="fw-semibold text-dark small">Upload Avatar</div>
-                                <div class="text-muted small">Change profile photo</div>
-                            </div>
-                        </div>
-                        <i class="bi bi-chevron-right text-muted small"></i>
-                    </a>
-
-                    <a href="<?php echo url('modules/profile/index.php#password-section'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-key text-warning fs-5"></i>
-                            <div>
-                                <div class="fw-semibold text-dark small">Security Settings</div>
-                                <div class="text-muted small">Change login password</div>
+                                <div class="text-muted small">Update administrator details</div>
                             </div>
                         </div>
                         <i class="bi bi-chevron-right text-muted small"></i>

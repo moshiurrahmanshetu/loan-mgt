@@ -238,3 +238,93 @@ function send_security_headers(bool $noCache = false): void
         header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
     }
 }
+
+/**
+ * Generates a unique, sequential customer code (e.g. CUS-000001).
+ *
+ * @param PDO $db
+ * @return string
+ */
+function generate_customer_code(PDO $db): string
+{
+    $stmt = $db->query('SELECT MAX(id) as max_id FROM customers');
+    $maxId = (int)($stmt->fetchColumn() ?: 0);
+    $nextNumber = $maxId + 1;
+
+    do {
+        $candidateCode = sprintf('CUS-%06d', $nextNumber);
+        $checkStmt = $db->prepare('SELECT id FROM customers WHERE customer_code = :code LIMIT 1');
+        $checkStmt->execute([':code' => $candidateCode]);
+        $exists = $checkStmt->fetchColumn();
+        if ($exists) {
+            $nextNumber++;
+        }
+    } while ($exists);
+
+    return $candidateCode;
+}
+
+/**
+ * Returns the URL for a customer's photo or local default fallback.
+ *
+ * @param string|null $photoFilename
+ * @param string $name
+ * @return string
+ */
+function get_customer_photo_url(?string $photoFilename = null, string $name = 'Customer'): string
+{
+    if (!empty($photoFilename)) {
+        $filePath = CUSTOMER_UPLOAD_DIR . DIRECTORY_SEPARATOR . $photoFilename;
+        if (file_exists($filePath)) {
+            return CUSTOMER_UPLOAD_URL . '/' . rawurlencode($photoFilename);
+        }
+    }
+    return asset('images/default-avatar.svg');
+}
+
+/**
+ * Formats a numeric value into clean currency display.
+ *
+ * @param float|int|string|null $amount
+ * @param string $symbol
+ * @return string
+ */
+function format_currency($amount, string $symbol = '$'): string
+{
+    $val = (float)($amount ?? 0);
+    return $symbol . number_format($val, 2, '.', ',');
+}
+
+/**
+ * Role Check: Whether current user can create and edit customers.
+ * Allowed: Admin, Manager, Loan Officer.
+ *
+ * @return bool
+ */
+function can_manage_customers(): bool
+{
+    return has_role(['admin', 'manager', 'loan_officer']);
+}
+
+/**
+ * Role Check: Whether current user can activate or deactivate customers.
+ * Allowed: Admin, Manager.
+ *
+ * @return bool
+ */
+function can_toggle_customer_status(): bool
+{
+    return has_role(['admin', 'manager']);
+}
+
+/**
+ * Role Check: Whether current user can delete customers.
+ * Allowed: Admin only.
+ *
+ * @return bool
+ */
+function can_delete_customers(): bool
+{
+    return has_role('admin');
+}
+

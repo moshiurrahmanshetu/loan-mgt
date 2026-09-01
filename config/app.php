@@ -11,7 +11,7 @@ if (!defined('ROOT_PATH')) {
 // Application Metadata
 define('APP_NAME', 'Loan Management System');
 define('APP_SHORT_NAME', 'LoanMgt');
-define('APP_VERSION', '1.0.0 (Phase 1)');
+define('APP_VERSION', '2.0.0 (Phase 2)');
 define('APP_ENV', 'development'); // 'development' or 'production'
 
 // Calculate Base URL dynamically for portability across XAMPP, virtual hosts, and production
@@ -36,8 +36,17 @@ if (!defined('BASE_URL')) {
 
 // Uploads Paths and URLs
 define('UPLOAD_DIR', ROOT_PATH . DIRECTORY_SEPARATOR . 'uploads');
+
+// User Avatars (Phase 1)
 define('AVATAR_UPLOAD_DIR', UPLOAD_DIR . DIRECTORY_SEPARATOR . 'avatars');
 define('AVATAR_UPLOAD_URL', BASE_URL . '/uploads/avatars');
 define('MAX_AVATAR_SIZE', 2 * 1024 * 1024); // 2MB
 define('ALLOWED_AVATAR_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
 define('ALLOWED_AVATAR_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);
+
+// Customer Photos (Phase 2)
+define('CUSTOMER_UPLOAD_DIR', UPLOAD_DIR . DIRECTORY_SEPARATOR . 'customers');
+define('CUSTOMER_UPLOAD_URL', BASE_URL . '/uploads/customers');
+define('MAX_CUSTOMER_PHOTO_SIZE', 2 * 1024 * 1024); // 2MB
+define('ALLOWED_CUSTOMER_PHOTO_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
+define('ALLOWED_CUSTOMER_PHOTO_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);

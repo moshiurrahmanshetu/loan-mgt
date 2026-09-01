@@ -1,4 +1,4 @@
-# Loan Management System (`loan-mgt`) — Phase 1
+# Loan Management System (`loan-mgt`) — Phase 2
 
 A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**, **MySQL**, **Bootstrap 5**, and **Bootstrap Icons**.
 
@@ -8,7 +8,7 @@ A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**,
 
 `loan-mgt` is designed for financial institutions, microfinance organizations, and credit unions to manage loan origination, customer portfolios, repayment schedules, risk assessment, and financial compliance.
 
-This codebase is architected using **pure native PHP 8+ and MySQL** without external PHP frameworks (no Laravel, Symfony, or CodeIgniter), strictly adhering to enterprise security baselines, modular database schemas, and clean architectural separation.
+This codebase is architected using **pure native PHP 8+ and MySQL** without external PHP frameworks (no Laravel, Symfony, or CodeIgniter), strictly adhering to enterprise security baselines, modular database schemas, role-based authorization, and clean architectural separation.
 
 ---
 
@@ -53,32 +53,44 @@ loan-mgt/
 │   ├── logout.php              # Session destruction & redirect
 │   └── forgot-password.php     # Forgot password view & instructions
 ├── config/
-│   ├── app.php                 # App name, dynamic BASE_URL detection, upload paths
+│   ├── app.php                 # App name, dynamic BASE_URL, upload paths
 │   ├── database.php            # Centralized PDO connection with exception handling
 │   └── session.php             # Secure session start, security options, regenerate helper
 ├── database/
-│   ├── auth.sql                # Standalone importable users table & default admin seed
+│   ├── auth.sql                # Phase 1: Standalone users table & default admin seed
+│   ├── customers.sql           # Phase 2: Customers table with FK referencing users.id
 │   └── README.md               # Database setup and import instructions
 ├── includes/
 │   ├── header.php              # HTML head, CSS imports, meta tags, security headers
 │   ├── footer.php              # Footer markup, JS bundle imports
 │   ├── navbar.php              # Topbar with sidebar toggle, user badge, profile dropdown
-│   ├── sidebar.php             # Responsive collapsible sidebar with active/coming-soon items
+│   ├── sidebar.php             # Responsive collapsible sidebar with active Phase 1 & 2 items
 │   ├── auth-check.php          # Protected page access guard & no-cache headers
 │   ├── guest-check.php         # Guest guard (redirects authenticated users to dashboard)
-│   ├── functions.php           # Security helpers (e(), csrf_*, auth_user(), redirect())
+│   ├── functions.php           # Security helpers, CSRF, auth checks, customer code generator
 │   └── flash.php               # Session-based alert banner system
 ├── modules/
 │   ├── dashboard/
-│   │   └── index.php           # Protected system dashboard with user metrics & phase notice
-│   └── profile/
-│       ├── index.php           # Profile view (details, security, avatar)
-│       ├── update.php          # POST handler for updating name/email/phone
-│       ├── change-password.php # POST handler for validating and updating password
-│       └── upload-avatar.php   # POST handler for secure avatar upload & image validation
+│   │   └── index.php           # System dashboard with live customer metrics & phase roadmap
+│   ├── profile/
+│   │   ├── index.php           # User profile view (details, security, avatar)
+│   │   ├── update.php          # POST handler for updating name/email/phone
+│   │   ├── change-password.php # POST handler for validating and updating password
+│   │   └── upload-avatar.php   # POST handler for secure avatar upload & image validation
+│   └── customers/
+│       ├── index.php           # Customer portfolio listing, search, status filter & pagination
+│       ├── create.php          # Customer registration form
+│       ├── store.php           # Customer registration POST handler & server-side validation
+│       ├── view.php            # Customer details profile & future loan area
+│       ├── edit.php            # Customer profile editing form
+│       ├── update.php          # Customer update POST handler & photo replacement
+│       ├── delete.php          # Safe customer deletion POST handler (Admin only)
+│       └── toggle-status.php   # Customer status activation toggle handler (Admin/Manager)
 ├── uploads/
-│   └── avatars/
-│       └── .htaccess           # Security: block PHP execution and disable directory listing
+│   ├── avatars/
+│   │   └── .htaccess           # Security: Block script execution & disable directory listing
+│   └── customers/
+│       └── .htaccess           # Security: Block script execution in customer photos folder
 ├── .htaccess                   # Root security & rewrite protection
 ├── index.php                   # Root redirect router (auth -> dashboard or login)
 └── README.md                   # Full documentation with setup, credentials, and test flows
@@ -86,31 +98,31 @@ loan-mgt/
 
 ---
 
-## 5. Database Setup & SQL Import
+## 5. Database Setup & Import Sequence
 
-The database schema is structured modularly. Phase 1 requires only `database/auth.sql`.
+The database schema is structured modularly. Import the schema files in this exact sequence:
 
 ### Option A: Using XAMPP / Command Line
-Run the following command in your terminal:
 ```bash
+# 1. Import Phase 1: Authentication & Users Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/auth.sql
+
+# 2. Import Phase 2: Customers Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/customers.sql
 ```
 *(Press Enter when prompted for password if using default XAMPP credentials)*
 
 ### Option B: Using phpMyAdmin
 1. Open your browser and navigate to: `http://localhost/phpmyadmin/`
 2. Click on the **Import** tab.
-3. Click **Choose File** and select `c:/xampp/htdocs/loan-mgt/database/auth.sql`.
-4. Click **Import** at the bottom of the page.
-
-The SQL file automatically creates the `loan_mgt` database and the `users` table with the default administrator account.
+3. Import `database/auth.sql` first.
+4. Import `database/customers.sql` second.
 
 ---
 
 ## 6. Database & Application Configuration
 
 ### Database Credentials (`config/database.php`)
-Credentials are centralized in `config/database.php`:
 ```php
 define('DB_HOST', '127.0.0.1');
 define('DB_PORT', '3306');
@@ -119,10 +131,9 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 ```
-Modify these constants if your MySQL server uses different credentials or ports.
 
 ### Base URL Configuration (`config/app.php`)
-`config/app.php` automatically determines the application's base URL dynamically from `$_SERVER['HTTP_HOST']` and document root paths. It works seamlessly whether deployed at `http://localhost/loan-mgt/` or a custom virtual host like `http://loan-mgt.test/`.
+`config/app.php` automatically determines the application's base URL dynamically from `$_SERVER['HTTP_HOST']` and document root paths.
 
 ---
 
@@ -137,61 +148,72 @@ Modify these constants if your MySQL server uses different credentials or ports.
 
 ---
 
-## 8. User Operations Guide
+## 8. Role-Based Permissions Matrix
 
-### A. How to Sign In
-1. Navigate to `http://localhost/loan-mgt/` in your web browser.
-2. You will be routed to `http://localhost/loan-mgt/auth/login.php`.
-3. Enter `admin@loanmgt.com` and `Admin@123456`.
-4. Click **Sign In to Account**.
-5. Upon successful authentication, your session ID is regenerated and you are redirected to the Dashboard (`modules/dashboard/index.php`).
-
-### B. How to Update Profile Details
-1. Click your name/avatar in the top navigation bar and select **My Profile** (or go to `modules/profile/index.php`).
-2. Update your **Full Name**, **Email Address**, or **Phone Number**.
-3. Click **Save Changes**.
-4. The system validates uniqueness and formatting, updates the database, refreshes the active session, and displays a confirmation flash message.
-
-### C. How to Upload a Profile Avatar
-1. On the **My Profile** page, locate the **Update Photo** card.
-2. Choose an image from your computer (Accepted formats: **JPG**, **PNG**, **WebP**; Maximum size: **2MB**).
-3. Click **Upload Avatar**.
-4. The backend securely checks the file MIME type via `finfo`, moves the image into `uploads/avatars/` with a cryptographically random filename, updates the user record, and instantly updates the avatar across the navbar and profile cards.
-
-### D. How to Change Password
-1. On the **My Profile** page, scroll to the **Security & Password** section.
-2. Enter your **Current Password**.
-3. Enter a **New Password** (minimum 8 characters) and repeat it in the **Confirm New Password** field.
-4. Click **Update Password**.
-5. The backend validates your current password hash using `password_verify()` and saves the new BCRYPT hash securely.
-
-### E. How to Sign Out
-1. Click the top-right profile dropdown and choose **Logout** (or visit `auth/logout.php`).
-2. Your session is completely destroyed, authentication cookies cleared, and you are redirected to the login view.
+| Module / Action | Admin | Manager | Loan Officer | Collector |
+| :--- | :---: | :---: | :---: | :---: |
+| **Sign In / Out & Session** | Yes | Yes | Yes | Yes |
+| **Dashboard Access** | Yes | Yes | Yes | Yes |
+| **Manage Own Profile & Password** | Yes | Yes | Yes | Yes |
+| **View Customer Portfolio (`index.php`, `view.php`)** | Yes | Yes | Yes | Yes |
+| **Search & Filter Customers** | Yes | Yes | Yes | Yes |
+| **Register Customer (`create.php`, `store.php`)** | Yes | Yes | Yes | No |
+| **Edit Customer (`edit.php`, `update.php`)** | Yes | Yes | Yes | No |
+| **Activate / Deactivate Status (`toggle-status.php`)** | Yes | Yes | No | No |
+| **Delete Customer (`delete.php`)** | Yes | No | No | No |
 
 ---
 
-## 9. Phase 1 Scope vs. Future Phases
+## 9. Customer Management User Guide
 
-### Current Phase 1 Features:
-* **Project Foundation & Security Sandbox**
-* **Standalone Database Schema & Admin Seed (`auth.sql`)**
-* **Raw PHP 8+ PDO Connection Layer with Prepared Statements**
-* **Safe Session Management & Anti-Fixation Regeneration**
-* **Authentication Engine (Login, Logout, Inactive Account Lockout)**
-* **CSRF Token Protection on All State-Changing Forms**
-* **Flash Alert Message Queue**
-* **Corporate UI Theme (Dark Charcoal Sidebar, Solid Colors, Zero Gradients)**
-* **Collapsible Desktop Sidebar with `localStorage` State Persistence**
-* **Mobile-Responsive Offcanvas Sidebar with Backdrop Overlay**
-* **Profile Management (Name, Email, Phone, Uniqueness Validation)**
-* **Secure Avatar Upload Sandbox with Extension & MIME Type Verification**
-* **Password Change Workflow with BCRYPT Verification**
+### A. Viewing & Searching Customers
+1. In the sidebar, click **Customers** (or navigate to `modules/customers/index.php`).
+2. Search by **Customer Code** (e.g. `CUS-000001`), **Full Name**, **Phone Number**, or **Email**.
+3. Filter by status: **All Statuses**, **Active Customers**, or **Inactive Customers**.
+4. Use the pagination controls to navigate large datasets without reloading unnecessary records.
 
-### Upcoming Phases (Future Roadmap):
-* **Phase 2**: Customer Portfolio & KYC Management (`customers.sql`)
-* **Phase 3**: Loan Products & Loan Application Engine (`loans.sql`)
-* **Phase 4**: Loan Approval, Underwriting & Disbursement Workflows
-* **Phase 5**: Installments, Repayments & Collection Tracking (`repayments.sql`)
-* **Phase 6**: Arrears & Delinquency Management
-* **Phase 7**: Financial Reporting, Portfolio Analytics & Audit Logging
+### B. Registering a New Customer
+1. Click **Add New Customer** at the top right of the customer list.
+2. Complete the multi-section form:
+   - **Personal Information**: Full Name (*), Primary Phone (*), Email, Date of Birth, Gender.
+   - **Residential Address**: Street Address, City / District.
+   - **Employment & Financial**: Occupation, Monthly Income.
+   - **Emergency Contact**: Contact Person Name, Phone Number.
+   - **Photo Upload**: Optional customer photo (JPG, PNG, WebP, max 2MB).
+   - **Status**: Active or Inactive.
+3. Click **Register Customer**.
+4. The system auto-generates a unique sequential code (`CUS-000001`, `CUS-000002`, ...), stores the record securely, and redirects to the customer details profile.
+
+### C. Viewing Customer Profile
+1. Click the **View** icon (or click the customer's name / code) from the table.
+2. The customer profile displays full contact details, age computation, residential address, financial metrics, emergency guarantor contact, and system audit metadata (Created By, Created Date, Updated Date).
+3. A clean placeholder section reserves space for the future loan origination engine.
+
+### D. Editing Customer Profile
+1. Click **Edit Profile** from the table or profile page.
+2. Modify any personal, address, financial, or emergency contact fields.
+3. The customer code is protected and read-only.
+4. Replace or remove the customer photo safely.
+5. Click **Save Changes** to update the database and disk storage.
+
+### E. Toggling Customer Status
+1. Click the status toggle button in the table or customer profile.
+2. Confirm the action to switch between **Active** and **Inactive**.
+3. Inactive borrowers cannot be issued loans in future phases.
+
+### F. Deleting a Customer (Admin Only)
+1. System Administrators can click the **Delete** button.
+2. Confirm the prompt to remove the record.
+3. The customer record and associated photo file are deleted safely from the system.
+
+---
+
+## 10. Phase Roadmap
+
+* **Phase 1 (Completed)**: Foundation, Authentication, Session Guards, CSRF, Common Layouts, Profile & Password Security.
+* **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
+* **Phase 3 (Upcoming)**: Loan Products & Loan Application Engine (`loans.sql`).
+* **Phase 4 (Upcoming)**: Loan Underwriting, Approval Workflows & Disbursement.
+* **Phase 5 (Upcoming)**: Installment Schedules, Repayments & Collection Tracking (`repayments.sql`).
+* **Phase 6 (Upcoming)**: Arrears & Delinquency Management.
+* **Phase 7 (Upcoming)**: Financial Reporting & Audit Analytics.

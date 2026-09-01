@@ -31,12 +31,11 @@ $activeNav = $activeNav ?? 'dashboard';
 
         <li class="sidebar-heading"><span>Loan Operations</span></li>
         
-        <!-- Customers (Phase 2 Coming Soon) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="Customers (Phase 2)">
+        <!-- Customers (Active in Phase 2) -->
+        <li class="sidebar-item <?php echo $activeNav === 'customers' ? 'active' : ''; ?>">
+            <a href="<?php echo url('modules/customers/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Customers">
                 <i class="bi bi-people"></i>
                 <span>Customers</span>
-                <span class="sidebar-badge">Soon</span>
             </a>
         </li>
 
