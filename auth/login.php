@@ -4,6 +4,9 @@
  * Loan Management System (loan-mgt) - Phase 1
  */
 
+require_once __DIR__ . '/../includes/install.php';
+require_installed();
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/guest-check.php';

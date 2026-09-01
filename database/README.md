@@ -1,20 +1,37 @@
 # Database Setup & Schema Guide
 
-This directory contains the modular, independently importable database schema files for the **Loan Management System (`loan-mgt`)**.
+This directory contains the database schema packages for the **Loan Management System (`loan-mgt`)**.
 
 ---
 
-## Required SQL Import Sequence
+## Master Fresh Installation Package: `install.sql`
 
-To ensure database integrity and foreign key compatibility, SQL files MUST be imported in this exact order:
+For production installations, deployment scripts, and automated installer wizards, use the unified master SQL package:
 
 ```text
-Step 1: database/auth.sql           (Creates database & users table)
-Step 2: database/customers.sql      (Creates customers table with FK to users.id)
-Step 3: database/loan_products.sql  (Creates loan_products table with FK to users.id)
-Step 4: database/loans.sql          (Creates loans table with FK to customers, loan_products, users)
-Step 5: database/disbursement.sql   (Extends loans table & creates loan_installments with FK to loans.id)
-Step 6: database/payments.sql       (Extends loans status & creates loan_payments with FK to loans, installments, customers, users)
+database/install.sql
+```
+
+This single master script includes all 10 relational tables, 32 granular permissions across 11 modules, 4 system roles, role-permission junction mappings, key-value settings, and default loan product templates in strict foreign-key dependency order.
+
+---
+
+## Developer Modular SQL Import Sequence
+
+For development environments or modular component imports, the schema files can also be imported in this exact sequence:
+
+```text
+Step 1: database/permissions.sql      (Creates permissions table & 32 seed capabilities)
+Step 2: database/roles.sql            (Creates roles table & 4 system roles)
+Step 3: database/role_permissions.sql (Creates role_permissions junction & default mappings)
+Step 4: database/settings.sql         (Creates settings table & default initial settings)
+Step 5: database/auth.sql             (Creates users table & base schema)
+Step 6: database/users.sql            (Extends users with username & role_id FK)
+Step 7: database/customers.sql        (Creates customers table with FK to users.id)
+Step 8: database/loan_products.sql    (Creates loan_products table with FK to users.id)
+Step 9: database/loans.sql            (Creates loans table with FK to customers, loan_products, users)
+Step 10: database/disbursement.sql    (Creates loan_installments with FK to loans.id)
+Step 11: database/payments.sql        (Creates loan_payments with FK to loans, installments, customers, users)
 ```
 
 ---

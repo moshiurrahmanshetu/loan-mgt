@@ -13,9 +13,11 @@ require_once __DIR__ . '/../config/session.php';
  * @param mixed $value
  * @return string
  */
-function e($value): string
-{
-    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (!function_exists('e')) {
+    function e($value): string
+    {
+        return htmlspecialchars((string)($value ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
 }
 
 /**

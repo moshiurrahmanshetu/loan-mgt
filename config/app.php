@@ -11,7 +11,7 @@ if (!defined('ROOT_PATH')) {
 // Application Metadata
 define('APP_NAME', 'Loan Management System');
 define('APP_SHORT_NAME', 'LoanMgt');
-define('APP_VERSION', '8.0.0 (Phase 8)');
+define('APP_VERSION', '9.0.0 (Phase 9)');
 define('APP_ENV', 'development'); // 'development' or 'production'
 
 // Calculate Base URL dynamically for portability across XAMPP, virtual hosts, and production
@@ -21,11 +21,17 @@ if (!defined('BASE_URL')) {
         $protocol = $isHttps ? 'https://' : 'http://';
         $host = $_SERVER['HTTP_HOST'];
         
-        $docRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? ''));
-        $appRoot = str_replace('\\', '/', ROOT_PATH);
+        $docRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $appRoot = str_replace('\\', '/', realpath(ROOT_PATH) ?: ROOT_PATH);
         
-        $subDir = str_replace($docRoot, '', $appRoot);
-        $subDir = trim($subDir, '/');
+        if (!empty($docRoot) && stripos($appRoot, $docRoot) === 0) {
+            $subDir = substr($appRoot, strlen($docRoot));
+        } else {
+            $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+            $subDir = preg_replace('#/(modules|auth|includes|config|installer).*$#i', '', $scriptDir);
+        }
+        
+        $subDir = trim((string)$subDir, '/');
         $basePath = !empty($subDir) ? '/' . $subDir : '';
         
         define('BASE_URL', rtrim($protocol . $host . $basePath, '/'));

@@ -6,6 +6,9 @@
  * Protects pages from unauthenticated access.
  */
 
+require_once __DIR__ . '/install.php';
+require_installed();
+
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/flash.php';
 
