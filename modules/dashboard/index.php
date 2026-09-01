@@ -1,7 +1,7 @@
 <?php
 /**
  * Dashboard View
- * Loan Management System (loan-mgt) - Phase 1
+ * Loan Management System (loan-mgt) - Phase 3
  */
 
 $pageTitle = 'Dashboard';
@@ -25,12 +25,19 @@ $lastLoginDisplay = !empty($userRecord['last_login'])
     ? date('F j, Y, g:i a', strtotime($userRecord['last_login'])) 
     : 'First session recorded';
 
-// Fetch customer summary metrics for Phase 2
+// Fetch Phase 2 Customer summary metrics
 $totalCustStmt = $db->query('SELECT COUNT(*) FROM customers');
 $totalCustomers = (int)$totalCustStmt->fetchColumn();
 
-$activeCustStmt = $db->query("SELECT COUNT(*) FROM customers WHERE status = 'active'");
-$activeCustomers = (int)$activeCustStmt->fetchColumn();
+// Fetch Phase 3 Loan and Product summary metrics
+$totalLoansStmt = $db->query('SELECT COUNT(*) FROM loans');
+$totalLoans = (int)$totalLoansStmt->fetchColumn();
+
+$pendingLoansStmt = $db->query("SELECT COUNT(*) FROM loans WHERE status = 'pending'");
+$pendingLoans = (int)$pendingLoansStmt->fetchColumn();
+
+$activeProductsStmt = $db->query("SELECT COUNT(*) FROM loan_products WHERE status = 'active'");
+$activeProducts = (int)$activeProductsStmt->fetchColumn();
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -45,7 +52,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <span class="badge badge-role <?php echo $roleBadgeClass; ?>"><?php echo e($roleLabel); ?></span>
                 </div>
                 <p class="text-muted mb-0 small">
-                    You are logged in to the <strong><?php echo e(APP_NAME); ?></strong> administrative portal.
+                    You are logged in to the <strong><?php echo e(APP_NAME); ?></strong> enterprise management portal.
                 </p>
             </div>
             <div class="text-md-end">
@@ -56,14 +63,14 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- System & Customer Metrics Grid -->
+<!-- System & Portfolio Metrics Grid -->
 <div class="row g-3 mb-4">
-    <!-- Total Customers Card (Phase 2 Metric) -->
+    <!-- Total Customers Card -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Total Borrowers</span>
+                    <span class="text-muted small text-uppercase fw-semibold">Borrowers</span>
                     <i class="bi bi-people-fill text-primary fs-5"></i>
                 </div>
                 <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($totalCustomers); ?></div>
@@ -72,44 +79,44 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
-    <!-- Active Customers Card -->
+    <!-- Total Loans Card -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Active Customers</span>
-                    <span class="badge badge-status-active">Active</span>
+                    <span class="text-muted small text-uppercase fw-semibold">Loan Applications</span>
+                    <i class="bi bi-cash-stack text-success fs-5"></i>
                 </div>
-                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($activeCustomers); ?></div>
-                <div class="small text-muted">Eligible for loan issuance</div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($totalLoans); ?></div>
+                <div class="small text-muted">Total originated applications</div>
             </div>
         </div>
     </div>
 
-    <!-- User Role Card -->
+    <!-- Pending Approvals Card -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Your Access Level</span>
-                    <i class="bi bi-person-badge text-primary fs-5"></i>
+                    <span class="text-muted small text-uppercase fw-semibold">Pending Review</span>
+                    <span class="badge badge-status-pending">Underwriting</span>
                 </div>
-                <div class="h5 mb-1 fw-bold text-dark"><?php echo e($roleLabel); ?></div>
-                <div class="small text-muted">Customer & security rules applied</div>
+                <div class="h4 mb-1 fw-bold text-warning"><?php echo number_format($pendingLoans); ?></div>
+                <div class="small text-muted">Awaiting credit decision</div>
             </div>
         </div>
     </div>
 
-    <!-- Session Guard Card -->
+    <!-- Active Products Card -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Session Guard</span>
-                    <i class="bi bi-shield-lock-fill text-primary fs-5"></i>
+                    <span class="text-muted small text-uppercase fw-semibold">Active Products</span>
+                    <i class="bi bi-tags-fill text-info fs-5"></i>
                 </div>
-                <div class="h5 mb-1 fw-bold text-dark">Protected</div>
-                <div class="small text-muted">CSRF & Session lock active</div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($activeProducts); ?></div>
+                <div class="small text-muted">Available loan templates</div>
             </div>
         </div>
     </div>
@@ -124,16 +131,16 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="bi bi-layers text-primary fs-5"></i>
                     <h3 class="h6 mb-0 fw-bold">System Scope & Phase Roadmap</h3>
                 </div>
-                <span class="badge bg-primary px-2.5 py-1.5">Phase 2 Active</span>
+                <span class="badge bg-primary px-2.5 py-1.5">Phase 3 Active</span>
             </div>
             <div class="card-body p-4">
                 <p class="text-muted">
-                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. The system is currently running <strong>Phase 2: Customer Management Module</strong>.
+                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. The system is currently running <strong>Phase 3: Loan Products & Loan Application Management</strong>.
                 </p>
                 <div class="p-3 bg-light rounded border mb-4">
-                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Roadmap Notice</div>
+                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Underwriting & Governance Summary</div>
                     <p class="text-muted small mb-0">
-                        Borrower profiles, contact registries, and emergency contact verifications are now live. Loan Products, Loan Origination, Approval Workflows, and Repayment Schedules will be enabled in subsequent modular phases.
+                        Loan product rules, application origination, and underwriting approval/rejection workflows are live with self-approval segregation controls. Loan disbursement, installment schedules, and repayment collections are scheduled for subsequent phases.
                     </p>
                 </div>
 
@@ -148,31 +155,31 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Admin Profile & Password Security (Phase 1)</span>
+                            <span>Customer Profile CRUD & Sandbox (Phase 2)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Customer Profile CRUD & Server Search (Phase 2)</span>
+                            <span>Loan Product Templates & Limits (Phase 3)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Customer Photo Sandbox with .htaccess (Phase 2)</span>
+                            <span>Loan Origination & Snapshot Storage (Phase 3)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Sequential Code Generator (CUS-XXXXXX)</span>
+                            <span>Underwriting Approval & Rejection Workflow (Phase 3)</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Role-Based Access Enforcement (Admin/Mgr/Officer/Collector)</span>
+                            <span>Self-Approval Prevention & Segregation of Duties</span>
                         </div>
                     </div>
                 </div>
@@ -191,50 +198,50 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
             <div class="card-body p-3">
                 <div class="list-group list-group-flush">
-                    <a href="<?php echo url('modules/customers/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-people text-primary fs-5"></i>
-                            <div>
-                                <div class="fw-semibold text-dark small">Customer Portfolio</div>
-                                <div class="text-muted small">View, filter & search borrowers</div>
-                            </div>
-                        </div>
-                        <i class="bi bi-chevron-right text-muted small"></i>
-                    </a>
-
-                    <?php if (can_manage_customers()): ?>
-                        <a href="<?php echo url('modules/customers/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
+                    <?php if (can_create_loans()): ?>
+                        <a href="<?php echo url('modules/loans/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
                             <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-person-plus text-success fs-5"></i>
+                                <i class="bi bi-plus-circle text-primary fs-5"></i>
                                 <div>
-                                    <div class="fw-semibold text-dark small">Add Customer</div>
-                                    <div class="text-muted small">Register new borrower</div>
+                                    <div class="fw-semibold text-dark small">New Loan Application</div>
+                                    <div class="text-muted small">Originate borrower credit</div>
                                 </div>
                             </div>
                             <i class="bi bi-chevron-right text-muted small"></i>
                         </a>
                     <?php endif; ?>
 
-                    <a href="<?php echo url('modules/profile/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
+                    <a href="<?php echo url('modules/loans/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-person-circle text-primary fs-5"></i>
+                            <i class="bi bi-cash-stack text-success fs-5"></i>
                             <div>
-                                <div class="fw-semibold text-dark small">My Profile</div>
-                                <div class="text-muted small">Update administrator details</div>
+                                <div class="fw-semibold text-dark small">Loan Portfolio</div>
+                                <div class="text-muted small">View, review & filter applications</div>
                             </div>
                         </div>
                         <i class="bi bi-chevron-right text-muted small"></i>
                     </a>
 
-                    <a href="<?php echo url('auth/logout.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5 text-danger">
+                    <a href="<?php echo url('modules/loan-products/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-box-arrow-right text-danger fs-5"></i>
+                            <i class="bi bi-tags text-info fs-5"></i>
                             <div>
-                                <div class="fw-semibold small">End Session</div>
-                                <div class="text-muted small">Logout safely</div>
+                                <div class="fw-semibold text-dark small">Loan Products</div>
+                                <div class="text-muted small">Lending templates & interest rules</div>
                             </div>
                         </div>
-                        <i class="bi bi-chevron-right small"></i>
+                        <i class="bi bi-chevron-right text-muted small"></i>
+                    </a>
+
+                    <a href="<?php echo url('modules/customers/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-2 py-2.5">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-people text-secondary fs-5"></i>
+                            <div>
+                                <div class="fw-semibold text-dark small">Customer Portfolio</div>
+                                <div class="text-muted small">Manage registered borrowers</div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted small"></i>
                     </a>
                 </div>
             </div>

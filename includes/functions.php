@@ -328,3 +328,205 @@ function can_delete_customers(): bool
     return has_role('admin');
 }
 
+/**
+ * Generates a unique, sequential loan product code (e.g. LP-001).
+ *
+ * @param PDO $db
+ * @return string
+ */
+function generate_product_code(PDO $db): string
+{
+    $stmt = $db->query('SELECT MAX(id) as max_id FROM loan_products');
+    $maxId = (int)($stmt->fetchColumn() ?: 0);
+    $nextNumber = $maxId + 1;
+
+    do {
+        $candidateCode = sprintf('LP-%03d', $nextNumber);
+        $checkStmt = $db->prepare('SELECT id FROM loan_products WHERE product_code = :code LIMIT 1');
+        $checkStmt->execute([':code' => $candidateCode]);
+        $exists = $checkStmt->fetchColumn();
+        if ($exists) {
+            $nextNumber++;
+        }
+    } while ($exists);
+
+    return $candidateCode;
+}
+
+/**
+ * Generates a unique, sequential loan application number (e.g. LN-000001).
+ *
+ * @param PDO $db
+ * @return string
+ */
+function generate_loan_number(PDO $db): string
+{
+    $stmt = $db->query('SELECT MAX(id) as max_id FROM loans');
+    $maxId = (int)($stmt->fetchColumn() ?: 0);
+    $nextNumber = $maxId + 1;
+
+    do {
+        $candidateNumber = sprintf('LN-%06d', $nextNumber);
+        $checkStmt = $db->prepare('SELECT id FROM loans WHERE loan_number = :num LIMIT 1');
+        $checkStmt->execute([':num' => $candidateNumber]);
+        $exists = $checkStmt->fetchColumn();
+        if ($exists) {
+            $nextNumber++;
+        }
+    } while ($exists);
+
+    return $candidateNumber;
+}
+
+/**
+ * Computes transparent calculation preview for a loan application.
+ *
+ * @param float $amount Principal requested amount
+ * @param float $rate Interest rate percentage
+ * @param string $method 'flat' or 'reducing_balance'
+ * @param float $feeRate Processing fee percentage
+ * @return array
+ */
+function calculate_loan_preview(float $amount, float $rate, string $method, float $feeRate): array
+{
+    $feeAmount = round($amount * ($feeRate / 100), 2);
+
+    if ($method === 'flat') {
+        $interestAmount = round($amount * ($rate / 100), 2);
+        $totalPayable = round($amount + $interestAmount, 2);
+        return [
+            'interest_amount' => $interestAmount,
+            'fee_amount'      => $feeAmount,
+            'total_payable'   => $totalPayable,
+            'is_flat'         => true,
+            'note'            => 'Flat interest rate applied over total term.'
+        ];
+    }
+
+    // Reducing balance preview
+    return [
+        'interest_amount' => 0.00,
+        'fee_amount'      => $feeAmount,
+        'total_payable'   => $amount,
+        'is_flat'         => false,
+        'note'            => 'Reducing Balance schedule will be generated dynamically upon disbursement.'
+    ];
+}
+
+/**
+ * Returns human-friendly label for interest calculation methods.
+ *
+ * @param string $method
+ * @return string
+ */
+function get_interest_method_label(string $method): string
+{
+    $labels = [
+        'flat'             => 'Flat Rate',
+        'reducing_balance' => 'Reducing Balance',
+    ];
+    return $labels[$method] ?? ucfirst(str_replace('_', ' ', $method));
+}
+
+/**
+ * Returns human-friendly label for repayment frequencies.
+ *
+ * @param string $freq
+ * @return string
+ */
+function get_frequency_label(string $freq): string
+{
+    $labels = [
+        'daily'    => 'Daily',
+        'weekly'   => 'Weekly',
+        'biweekly' => 'Bi-Weekly',
+        'monthly'  => 'Monthly',
+    ];
+    return $labels[$freq] ?? ucfirst($freq);
+}
+
+/**
+ * Returns Bootstrap badge HTML for loan statuses.
+ *
+ * @param string $status
+ * @return string
+ */
+function get_loan_status_badge(string $status): string
+{
+    $classes = [
+        'draft'     => 'badge-status-draft',
+        'pending'   => 'badge-status-pending',
+        'approved'  => 'badge-status-approved',
+        'rejected'  => 'badge-status-rejected',
+        'cancelled' => 'badge-status-cancelled',
+    ];
+    $cls = $classes[$status] ?? 'bg-secondary text-white';
+    return '<span class="badge ' . $cls . '">' . e(ucfirst($status)) . '</span>';
+}
+
+/**
+ * Role Check: Whether current user can manage (create, edit, toggle, delete) loan products.
+ * Allowed: Admin, Manager.
+ *
+ * @return bool
+ */
+function can_manage_loan_products(): bool
+{
+    return has_role(['admin', 'manager']);
+}
+
+/**
+ * Role Check: Whether current user can create new loan applications.
+ * Allowed: Admin, Manager, Loan Officer.
+ *
+ * @return bool
+ */
+function can_create_loans(): bool
+{
+    return has_role(['admin', 'manager', 'loan_officer']);
+}
+
+/**
+ * Role Check: Whether current user can approve or reject loan applications.
+ * Allowed: Admin, Manager.
+ *
+ * @return bool
+ */
+function can_approve_loans(): bool
+{
+    return has_role(['admin', 'manager']);
+}
+
+/**
+ * Logic Check: Whether a given loan application can be edited by the current user.
+ *
+ * @param array $loan
+ * @param int|null $currentUserId
+ * @return bool
+ */
+function can_edit_loan(array $loan, ?int $currentUserId = null): bool
+{
+    if ($currentUserId === null) {
+        $currentUserId = auth_id();
+    }
+
+    $status = $loan['status'] ?? '';
+
+    // Drafts: editable by Creator, Admin, or Manager
+    if ($status === 'draft') {
+        if (has_role(['admin', 'manager']) || ($currentUserId !== null && (int)$loan['created_by'] === (int)$currentUserId)) {
+            return true;
+        }
+    }
+
+    // Pending: editable by Admin or Manager
+    if ($status === 'pending') {
+        if (has_role(['admin', 'manager'])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+

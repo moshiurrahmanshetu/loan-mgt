@@ -1,6 +1,6 @@
 # Database Setup & Schema Guide
 
-This directory contains the modular database schema files for the **Loan Management System (`loan-mgt`)**.
+This directory contains the modular, independently importable database schema files for the **Loan Management System (`loan-mgt`)**.
 
 ---
 
@@ -9,8 +9,10 @@ This directory contains the modular database schema files for the **Loan Managem
 To ensure database integrity and foreign key compatibility, SQL files MUST be imported in this exact order:
 
 ```text
-Step 1: database/auth.sql       (Creates database & users table)
-Step 2: database/customers.sql  (Creates customers table with FK to users.id)
+Step 1: database/auth.sql           (Creates database & users table)
+Step 2: database/customers.sql      (Creates customers table with FK to users.id)
+Step 3: database/loan_products.sql  (Creates loan_products table with FK to users.id)
+Step 4: database/loans.sql          (Creates loans table with FK to customers, loan_products, users)
 ```
 
 ---
@@ -20,69 +22,117 @@ Step 2: database/customers.sql  (Creates customers table with FK to users.id)
 Creates the `loan_mgt` database and the `users` table for system authentication and administrative access.
 
 ### Table: `users`
-
-| Column | Type | Nullable | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `INT UNSIGNED` | No | Primary Key (Auto-Increment) |
-| `name` | `VARCHAR(100)` | No | User's full name |
-| `email` | `VARCHAR(150)` | No | Unique email address used for authentication |
-| `phone` | `VARCHAR(30)` | Yes | Contact telephone / mobile number |
-| `password` | `VARCHAR(255)` | No | BCRYPT password hash |
-| `avatar` | `VARCHAR(255)` | Yes | Avatar image filename in `uploads/avatars/` |
-| `role` | `ENUM` | No | `admin`, `manager`, `loan_officer`, `collector` |
-| `status` | `ENUM` | No | `active`, `inactive` |
-| `last_login` | `DATETIME` | Yes | Timestamp of last successful sign-in |
-| `created_at` | `TIMESTAMP` | No | Record creation timestamp |
-| `updated_at` | `TIMESTAMP` | No | Auto-updated modification timestamp |
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `name` VARCHAR(100) NOT NULL
+* `email` VARCHAR(150) NOT NULL UNIQUE
+* `phone` VARCHAR(30) NULL
+* `password` VARCHAR(255) NOT NULL (BCRYPT hash)
+* `avatar` VARCHAR(255) NULL
+* `role` ENUM('admin', 'manager', 'loan_officer', 'collector') NOT NULL DEFAULT 'loan_officer'
+* `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active'
+* `last_login` DATETIME NULL
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
 ---
 
 ## 2. Phase 2 Schema: `customers.sql`
 
-Creates the `customers` table for borrower profile management, contact details, financial records, and emergency contact verification.
+Creates the `customers` table for borrower profile management, KYC, and guarantor contacts.
 
 ### Table: `customers`
-
-| Column | Type | Nullable | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `INT UNSIGNED` | No | Primary Key (Auto-Increment) |
-| `customer_code` | `VARCHAR(20)` | No | Unique system-generated code (e.g. `CUS-000001`) |
-| `full_name` | `VARCHAR(100)` | No | Customer full name |
-| `phone` | `VARCHAR(30)` | No | Primary telephone / mobile contact |
-| `email` | `VARCHAR(150)` | Yes | Contact email address |
-| `date_of_birth` | `DATE` | Yes | Date of birth for age & eligibility verification |
-| `gender` | `ENUM` | Yes | `male`, `female`, `other` |
-| `address` | `TEXT` | Yes | Residential street address |
-| `city` | `VARCHAR(50)` | Yes | City or municipality |
-| `occupation` | `VARCHAR(100)` | Yes | Profession / Business / Employment |
-| `monthly_income` | `DECIMAL(12,2)` | Yes | Declared monthly income (e.g. `4500.00`) |
-| `emergency_contact_name` | `VARCHAR(100)` | Yes | Name of guarantor or emergency contact |
-| `emergency_contact_phone` | `VARCHAR(30)` | Yes | Telephone of emergency contact |
-| `photo` | `VARCHAR(255)` | Yes | Photo filename stored in `uploads/customers/` |
-| `status` | `ENUM` | No | `active`, `inactive` (Default: `active`) |
-| `created_by` | `INT UNSIGNED` | Yes | FK referencing `users(id)` |
-| `created_at` | `TIMESTAMP` | No | Record creation timestamp |
-| `updated_at` | `TIMESTAMP` | No | Auto-updated modification timestamp |
-
-### Foreign Key Relational Rule
-```sql
-CONSTRAINT `fk_customers_created_by`
-    FOREIGN KEY (`created_by`)
-    REFERENCES `users` (`id`)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE
-```
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `customer_code` VARCHAR(20) NOT NULL UNIQUE (e.g. `CUS-000001`)
+* `full_name` VARCHAR(100) NOT NULL
+* `phone` VARCHAR(30) NOT NULL
+* `email` VARCHAR(150) NULL
+* `date_of_birth` DATE NULL
+* `gender` ENUM('male', 'female', 'other') NULL
+* `address` TEXT NULL
+* `city` VARCHAR(50) NULL
+* `occupation` VARCHAR(100) NULL
+* `monthly_income` DECIMAL(12, 2) DEFAULT 0.00
+* `emergency_contact_name` VARCHAR(100) NULL
+* `emergency_contact_phone` VARCHAR(30) NULL
+* `photo` VARCHAR(255) NULL
+* `status` ENUM('active', 'inactive') DEFAULT 'active'
+* `created_by` INT UNSIGNED NULL (FK -> `users.id`)
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
 ---
 
-## How to Import via CLI
+## 3. Phase 3 Schema: `loan_products.sql`
+
+Creates the `loan_products` table defining product rules, interest methods, limits, and processing fee templates.
+
+### Table: `loan_products`
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `product_code` VARCHAR(20) NOT NULL UNIQUE (e.g. `LP-001`)
+* `name` VARCHAR(100) NOT NULL
+* `description` TEXT NULL
+* `minimum_amount` DECIMAL(12, 2) NOT NULL DEFAULT 1000.00
+* `maximum_amount` DECIMAL(12, 2) NOT NULL DEFAULT 50000.00
+* `interest_rate` DECIMAL(5, 2) NOT NULL DEFAULT 10.00 (Annual/Term Percentage)
+* `interest_method` ENUM('flat', 'reducing_balance') NOT NULL DEFAULT 'flat'
+* `term_min` INT UNSIGNED NOT NULL DEFAULT 1
+* `term_max` INT UNSIGNED NOT NULL DEFAULT 12
+* `term_unit` ENUM('days', 'weeks', 'months') NOT NULL DEFAULT 'months'
+* `repayment_frequency` ENUM('daily', 'weekly', 'biweekly', 'monthly') NOT NULL DEFAULT 'monthly'
+* `processing_fee` DECIMAL(5, 2) NOT NULL DEFAULT 0.00 (%)
+* `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active'
+* `created_by` INT UNSIGNED NULL (FK -> `users.id`)
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+---
+
+## 4. Phase 3 Schema: `loans.sql`
+
+Creates the `loans` table storing loan applications, product parameter snapshots, and approval audit trails.
+
+### Table: `loans`
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `loan_number` VARCHAR(30) NOT NULL UNIQUE (e.g. `LN-000001`)
+* `customer_id` INT UNSIGNED NOT NULL (FK -> `customers.id`, RESTRICT on delete)
+* `loan_product_id` INT UNSIGNED NOT NULL (FK -> `loan_products.id`, RESTRICT on delete)
+* `requested_amount` DECIMAL(12, 2) NOT NULL
+* `interest_rate` DECIMAL(5, 2) NOT NULL (Snapshot)
+* `interest_method` ENUM('flat', 'reducing_balance') NOT NULL (Snapshot)
+* `term` INT UNSIGNED NOT NULL (Snapshot)
+* `term_unit` ENUM('days', 'weeks', 'months') NOT NULL (Snapshot)
+* `repayment_frequency` ENUM('daily', 'weekly', 'biweekly', 'monthly') NOT NULL (Snapshot)
+* `processing_fee_rate` DECIMAL(5, 2) NOT NULL DEFAULT 0.00 (Snapshot)
+* `processing_fee_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `estimated_interest_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `estimated_total_payable` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+* `purpose` TEXT NULL
+* `application_date` DATE NOT NULL
+* `status` ENUM('draft', 'pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'
+* `notes` TEXT NULL
+* `rejection_reason` TEXT NULL
+* `created_by` INT UNSIGNED NULL (FK -> `users.id`)
+* `approved_by` INT UNSIGNED NULL (FK -> `users.id`)
+* `approved_at` DATETIME NULL
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+---
+
+## How to Import via CLI (Fresh Database)
 
 ```bash
-# 1. Import Phase 1 Auth Schema
+# 1. Import Phase 1: Authentication & Users Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/auth.sql
 
-# 2. Import Phase 2 Customers Schema
+# 2. Import Phase 2: Customers Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/customers.sql
+
+# 3. Import Phase 3: Loan Products Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/loan_products.sql
+
+# 4. Import Phase 3: Loan Applications Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 ```
 
 ---

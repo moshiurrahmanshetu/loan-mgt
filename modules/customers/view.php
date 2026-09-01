@@ -41,6 +41,17 @@ $photoUrl = get_customer_photo_url($customer['photo'], $customer['full_name']);
 $isActive = ($customer['status'] === 'active');
 $statusBadge = $isActive ? 'badge-status-active' : 'badge-status-inactive';
 
+// Fetch customer's loan applications
+$loanStmt = $db->prepare('
+    SELECT l.*, lp.name AS product_name 
+    FROM loans l 
+    LEFT JOIN loan_products lp ON l.loan_product_id = lp.id 
+    WHERE l.customer_id = :cid 
+    ORDER BY l.id DESC
+');
+$loanStmt->execute([':cid' => $customerId]);
+$customerLoans = $loanStmt->fetchAll();
+
 // Compute age if DOB is present
 $ageDisplay = 'N/A';
 if (!empty($customer['date_of_birth'])) {
@@ -253,20 +264,74 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <!-- 4. Future Loan Area (Phase 3 Roadmap Placeholder) -->
+        <!-- 4. Loan Portfolio & History -->
         <div class="card shadow-sm mb-0">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h4 class="h6 mb-0 fw-bold"><i class="bi bi-cash-stack me-2 text-primary"></i> Loan Portfolio & History</h4>
-                <span class="badge bg-light text-dark border">Upcoming Feature</span>
+                <h4 class="h6 mb-0 fw-bold"><i class="bi bi-cash-stack me-2 text-primary"></i> Loan Applications & History</h4>
+                <?php if ($isActive && can_create_loans()): ?>
+                    <a href="<?php echo url('modules/loans/create.php?customer_id=' . $customer['id']); ?>" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> New Application
+                    </a>
+                <?php endif; ?>
             </div>
-            <div class="card-body p-4 text-center">
-                <div class="py-3">
-                    <i class="bi bi-journal-bookmark text-muted display-6 d-block mb-2"></i>
-                    <h5 class="fw-semibold text-dark h6">No Active Loans Linked</h5>
-                    <p class="text-muted small mb-0 max-w-md mx-auto">
-                        Loan origination, approval workflows, installment schedules, and repayment history will be enabled in subsequent modular phases.
-                    </p>
-                </div>
+            <div class="card-body p-0">
+                <?php if (!empty($customerLoans)): ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-3 py-2.5">Loan #</th>
+                                    <th class="py-2.5">Product</th>
+                                    <th class="py-2.5 text-end">Amount</th>
+                                    <th class="py-2.5">Term</th>
+                                    <th class="py-2.5 text-center">Status</th>
+                                    <th class="pe-3 py-2.5 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($customerLoans as $cl): ?>
+                                    <tr>
+                                        <td class="ps-3 font-monospace fw-semibold">
+                                            <a href="<?php echo url('modules/loans/view.php?id=' . $cl['id']); ?>" class="text-decoration-none">
+                                                <?php echo e($cl['loan_number']); ?>
+                                            </a>
+                                        </td>
+                                        <td class="small fw-semibold text-dark">
+                                            <?php echo e($cl['product_name'] ?? 'Product'); ?>
+                                        </td>
+                                        <td class="text-end small fw-bold text-dark">
+                                            <?php echo format_currency($cl['requested_amount']); ?>
+                                        </td>
+                                        <td class="small text-muted">
+                                            <?php echo (int)$cl['term'] . ' ' . ucfirst($cl['term_unit']); ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <?php echo get_loan_status_badge($cl['status']); ?>
+                                        </td>
+                                        <td class="pe-3 text-end">
+                                            <a href="<?php echo url('modules/loans/view.php?id=' . $cl['id']); ?>" class="btn btn-sm btn-outline-secondary" title="View Loan Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="p-4 text-center">
+                        <i class="bi bi-journal-bookmark text-muted display-6 d-block mb-2"></i>
+                        <h5 class="fw-semibold text-dark h6">No Loan Applications Originated</h5>
+                        <p class="text-muted small mb-3 max-w-md mx-auto">
+                            This borrower has not applied for any loan products yet.
+                        </p>
+                        <?php if ($isActive && can_create_loans()): ?>
+                            <a href="<?php echo url('modules/loans/create.php?customer_id=' . $customer['id']); ?>" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i> Originate First Loan
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -1,4 +1,4 @@
-# Loan Management System (`loan-mgt`) — Phase 2
+# Loan Management System (`loan-mgt`) — Phase 3
 
 A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**, **MySQL**, **Bootstrap 5**, and **Bootstrap Icons**.
 
@@ -16,7 +16,7 @@ This codebase is architected using **pure native PHP 8+ and MySQL** without exte
 
 * **Backend**: Raw PHP 8.1+
 * **Database**: MySQL 5.7+ / MariaDB 10.4+ (InnoDB, UTF-8 `utf8mb4_unicode_ci`)
-* **Database Access**: PHP Data Objects (PDO) with Prepared Statements
+* **Database Access**: PHP Data Objects (PDO) with Prepared Statements & Transactions
 * **Frontend**: HTML5, CSS3, JavaScript (ES6+)
 * **UI Framework**: Bootstrap 5.3.3 (Bundled locally)
 * **Icons**: Bootstrap Icons 1.11.3 (Bundled locally)
@@ -39,7 +39,7 @@ This codebase is architected using **pure native PHP 8+ and MySQL** without exte
 loan-mgt/
 ├── assets/
 │   ├── css/
-│   │   └── style.css           # Custom business UI styles, layout, sidebar collapse
+│   │   └── style.css           # Custom business UI styles, layout, sidebar collapse, badges
 │   ├── js/
 │   │   └── app.js              # Sidebar toggle, localStorage persistence, tooltips
 │   ├── images/
@@ -53,39 +53,60 @@ loan-mgt/
 │   ├── logout.php              # Session destruction & redirect
 │   └── forgot-password.php     # Forgot password view & instructions
 ├── config/
-│   ├── app.php                 # App name, dynamic BASE_URL, upload paths
+│   ├── app.php                 # App name, dynamic BASE_URL, upload paths, version
 │   ├── database.php            # Centralized PDO connection with exception handling
 │   └── session.php             # Secure session start, security options, regenerate helper
 ├── database/
-│   ├── auth.sql                # Phase 1: Standalone users table & default admin seed
-│   ├── customers.sql           # Phase 2: Customers table with FK referencing users.id
-│   └── README.md               # Database setup and import instructions
+│   ├── auth.sql                # Step 1: Authentication & users schema + default admin
+│   ├── customers.sql           # Step 2: Customers schema (FK to users.id)
+│   ├── loan_products.sql       # Step 3: Loan product templates (FK to users.id)
+│   ├── loans.sql               # Step 4: Loan applications & contract snapshot (FK to customers, loan_products, users)
+│   └── README.md               # Database setup and 4-step import sequence
 ├── includes/
 │   ├── header.php              # HTML head, CSS imports, meta tags, security headers
 │   ├── footer.php              # Footer markup, JS bundle imports
 │   ├── navbar.php              # Topbar with sidebar toggle, user badge, profile dropdown
-│   ├── sidebar.php             # Responsive collapsible sidebar with active Phase 1 & 2 items
+│   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans)
 │   ├── auth-check.php          # Protected page access guard & no-cache headers
 │   ├── guest-check.php         # Guest guard (redirects authenticated users to dashboard)
-│   ├── functions.php           # Security helpers, CSRF, auth checks, customer code generator
+│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, calculation preview
 │   └── flash.php               # Session-based alert banner system
 ├── modules/
 │   ├── dashboard/
-│   │   └── index.php           # System dashboard with live customer metrics & phase roadmap
+│   │   └── index.php           # System dashboard with live loan, customer & product metrics
 │   ├── profile/
 │   │   ├── index.php           # User profile view (details, security, avatar)
 │   │   ├── update.php          # POST handler for updating name/email/phone
 │   │   ├── change-password.php # POST handler for validating and updating password
 │   │   └── upload-avatar.php   # POST handler for secure avatar upload & image validation
-│   └── customers/
-│       ├── index.php           # Customer portfolio listing, search, status filter & pagination
-│       ├── create.php          # Customer registration form
-│       ├── store.php           # Customer registration POST handler & server-side validation
-│       ├── view.php            # Customer details profile & future loan area
-│       ├── edit.php            # Customer profile editing form
-│       ├── update.php          # Customer update POST handler & photo replacement
-│       ├── delete.php          # Safe customer deletion POST handler (Admin only)
-│       └── toggle-status.php   # Customer status activation toggle handler (Admin/Manager)
+│   ├── customers/
+│   │   ├── index.php           # Customer portfolio listing, search, status filter & pagination
+│   │   ├── create.php          # Customer registration form
+│   │   ├── store.php           # Customer registration POST handler & server-side validation
+│   │   ├── view.php            # Customer details profile & linked loan history
+│   │   ├── edit.php            # Customer profile editing form
+│   │   ├── update.php          # Customer update POST handler & photo replacement
+│   │   ├── delete.php          # Safe customer deletion POST handler (Admin only)
+│   │   └── toggle-status.php   # Customer status activation toggle handler (Admin/Manager)
+│   ├── loan-products/
+│   │   ├── index.php           # Loan products catalog, status filter & pagination
+│   │   ├── create.php          # Add loan product form with lending rules
+│   │   ├── store.php           # Product creation POST handler & server validation
+│   │   ├── view.php            # Product rules details & linked portfolio summary
+│   │   ├── edit.php            # Edit product rules form
+│   │   ├── update.php          # Update product POST handler
+│   │   ├── delete.php          # Safe product deletion (blocked if referenced by loans)
+│   │   └── toggle-status.php   # Toggle product active/inactive status
+│   └── loans/
+│       ├── index.php           # Loan applications listing, search, status filter & pagination
+│       ├── create.php          # Interactive loan application form with real-time preview
+│       ├── store.php           # Application POST handler (Draft vs Submit, full server validation)
+│       ├── view.php            # Comprehensive loan application file, terms snapshot & audit
+│       ├── edit.php            # Edit application form (Draft / Pending only)
+│       ├── update.php          # Update application POST handler
+│       ├── cancel.php          # Cancel draft/pending application handler
+│       ├── approve.php         # Underwriting approval handler (Admin/Manager, self-approval blocked)
+│       └── reject.php          # Underwriting rejection handler (records reason)
 ├── uploads/
 │   ├── avatars/
 │   │   └── .htaccess           # Security: Block script execution & disable directory listing
@@ -109,6 +130,12 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/auth.sql
 
 # 2. Import Phase 2: Customers Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/customers.sql
+
+# 3. Import Phase 3: Loan Products Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/loan_products.sql
+
+# 4. Import Phase 3: Loan Applications Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 ```
 *(Press Enter when prompted for password if using default XAMPP credentials)*
 
@@ -117,6 +144,8 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/customers.sql
 2. Click on the **Import** tab.
 3. Import `database/auth.sql` first.
 4. Import `database/customers.sql` second.
+5. Import `database/loan_products.sql` third.
+6. Import `database/loans.sql` fourth.
 
 ---
 
@@ -156,55 +185,36 @@ define('DB_CHARSET', 'utf8mb4');
 | **Dashboard Access** | Yes | Yes | Yes | Yes |
 | **Manage Own Profile & Password** | Yes | Yes | Yes | Yes |
 | **View Customer Portfolio (`index.php`, `view.php`)** | Yes | Yes | Yes | Yes |
-| **Search & Filter Customers** | Yes | Yes | Yes | Yes |
-| **Register Customer (`create.php`, `store.php`)** | Yes | Yes | Yes | No |
-| **Edit Customer (`edit.php`, `update.php`)** | Yes | Yes | Yes | No |
-| **Activate / Deactivate Status (`toggle-status.php`)** | Yes | Yes | No | No |
-| **Delete Customer (`delete.php`)** | Yes | No | No | No |
+| **Register / Edit Customer** | Yes | Yes | Yes | No |
+| **Activate / Deactivate Customer** | Yes | Yes | No | No |
+| **Delete Customer** | Yes | No | No | No |
+| **View Loan Products (`loan-products/`)** | Yes | Yes | Yes | Yes |
+| **Create / Edit / Toggle Loan Products** | Yes | Yes | No | No |
+| **Delete Loan Product (Safe check)** | Yes | No | No | No |
+| **View Loan Applications (`loans/`)** | Yes | Yes | Yes | Yes |
+| **Originate Loan Application (`create.php`, `store.php`)** | Yes | Yes | Yes | No |
+| **Edit Draft Loan Application** | Yes | Yes | Yes (Own) | No |
+| **Edit Pending Loan Application** | Yes | Yes | No | No |
+| **Approve / Reject Loan Application** | Yes | Yes | No | No |
+| **Self-Approval of Own Originated Loan** | **Blocked** | **Blocked** | **Blocked** | **Blocked** |
+| **Cancel Draft / Pending Loan** | Yes | Yes | Yes (Own) | No |
 
 ---
 
-## 9. Customer Management User Guide
+## 9. Financial Calculation Methodology & Snapshot Safety
 
-### A. Viewing & Searching Customers
-1. In the sidebar, click **Customers** (or navigate to `modules/customers/index.php`).
-2. Search by **Customer Code** (e.g. `CUS-000001`), **Full Name**, **Phone Number**, or **Email**.
-3. Filter by status: **All Statuses**, **Active Customers**, or **Inactive Customers**.
-4. Use the pagination controls to navigate large datasets without reloading unnecessary records.
+### Flat Rate Calculations
+* **Interest**: `Principal × (Interest Rate / 100)`
+* **Processing Fee**: `Principal × (Processing Fee Rate / 100)`
+* **Estimated Total Payable**: `Principal + Interest`
+* *Processing fee is collected upfront and displayed separately from repayment obligations.*
 
-### B. Registering a New Customer
-1. Click **Add New Customer** at the top right of the customer list.
-2. Complete the multi-section form:
-   - **Personal Information**: Full Name (*), Primary Phone (*), Email, Date of Birth, Gender.
-   - **Residential Address**: Street Address, City / District.
-   - **Employment & Financial**: Occupation, Monthly Income.
-   - **Emergency Contact**: Contact Person Name, Phone Number.
-   - **Photo Upload**: Optional customer photo (JPG, PNG, WebP, max 2MB).
-   - **Status**: Active or Inactive.
-3. Click **Register Customer**.
-4. The system auto-generates a unique sequential code (`CUS-000001`, `CUS-000002`, ...), stores the record securely, and redirects to the customer details profile.
+### Reducing Balance Calculations
+* Identifies the reducing balance method transparently.
+* Preview calculations explicitly note that amortization schedules will be dynamically generated upon loan disbursement.
 
-### C. Viewing Customer Profile
-1. Click the **View** icon (or click the customer's name / code) from the table.
-2. The customer profile displays full contact details, age computation, residential address, financial metrics, emergency guarantor contact, and system audit metadata (Created By, Created Date, Updated Date).
-3. A clean placeholder section reserves space for the future loan origination engine.
-
-### D. Editing Customer Profile
-1. Click **Edit Profile** from the table or profile page.
-2. Modify any personal, address, financial, or emergency contact fields.
-3. The customer code is protected and read-only.
-4. Replace or remove the customer photo safely.
-5. Click **Save Changes** to update the database and disk storage.
-
-### E. Toggling Customer Status
-1. Click the status toggle button in the table or customer profile.
-2. Confirm the action to switch between **Active** and **Inactive**.
-3. Inactive borrowers cannot be issued loans in future phases.
-
-### F. Deleting a Customer (Admin Only)
-1. System Administrators can click the **Delete** button.
-2. Confirm the prompt to remove the record.
-3. The customer record and associated photo file are deleted safely from the system.
+### Contract Snapshot Guarantee
+When a loan application is created, an immutable snapshot of all product parameters (`interest_rate`, `interest_method`, `term_unit`, `repayment_frequency`, `processing_fee_rate`, `estimated_interest_amount`, `processing_fee_amount`, `estimated_total_payable`) is stored directly in the `loans` record. Subsequent modifications to the Loan Product template will never alter existing loan contracts.
 
 ---
 
@@ -212,8 +222,8 @@ define('DB_CHARSET', 'utf8mb4');
 
 * **Phase 1 (Completed)**: Foundation, Authentication, Session Guards, CSRF, Common Layouts, Profile & Password Security.
 * **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
-* **Phase 3 (Upcoming)**: Loan Products & Loan Application Engine (`loans.sql`).
-* **Phase 4 (Upcoming)**: Loan Underwriting, Approval Workflows & Disbursement.
+* **Phase 3 (Completed)**: Loan Products Management, Loan Application Origination, Contract Snapshots, Underwriting Workflow & Self-Approval Prevention.
+* **Phase 4 (Upcoming)**: Loan Disbursement & Payment Issuance Workflows.
 * **Phase 5 (Upcoming)**: Installment Schedules, Repayments & Collection Tracking (`repayments.sql`).
 * **Phase 6 (Upcoming)**: Arrears & Delinquency Management.
 * **Phase 7 (Upcoming)**: Financial Reporting & Audit Analytics.

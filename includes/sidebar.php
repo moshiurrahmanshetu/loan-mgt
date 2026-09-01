@@ -39,12 +39,19 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <!-- Loans (Phase 3 Coming Soon) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="Loans (Phase 3)">
+        <!-- Loan Products (Active in Phase 3) -->
+        <li class="sidebar-item <?php echo $activeNav === 'loan-products' ? 'active' : ''; ?>">
+            <a href="<?php echo url('modules/loan-products/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Loan Products">
+                <i class="bi bi-tags"></i>
+                <span>Loan Products</span>
+            </a>
+        </li>
+
+        <!-- Loans (Active in Phase 3) -->
+        <li class="sidebar-item <?php echo $activeNav === 'loans' ? 'active' : ''; ?>">
+            <a href="<?php echo url('modules/loans/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Loan Applications">
                 <i class="bi bi-cash-stack"></i>
                 <span>Loans</span>
-                <span class="sidebar-badge">Soon</span>
             </a>
         </li>
 
