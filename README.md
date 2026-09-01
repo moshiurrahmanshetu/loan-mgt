@@ -237,7 +237,31 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 
 ---
 
-## 9. Phase Roadmap
+## 9. Dynamic Executive & Operations Dashboard (Phase 7)
+
+### Real-Time Financial & Portfolio Overview
+1. **6 High-Priority Metric Cards**:
+   - **Registered Borrowers**: Total customer count and new registrations this month.
+   - **Active Loan Accounts**: Current active loans count and portfolio valuation.
+   - **Total Capital Disbursed**: Lifetime capital releases and current month volume.
+   - **Total Collections Realized**: Lifetime received payments, today's collection, and current month total.
+   - **Active Portfolio Outstanding**: Real-time remaining balance across all active installments.
+   - **Overdue Delinquency Exposure**: Delinquent installments count and overdue exposure amount.
+
+2. **Role-Adaptive Operational Highlights**:
+   - **Admin & Manager**: Full financial ledger, status distribution, monthly cashflow, underwriting and disbursement quick links.
+   - **Loan Officer**: Pending application pipeline alerts, customer onboarding, and loan origination tools.
+   - **Collector**: Daily collection goals, due today installments, overdue delinquency alerts, and collection tools.
+
+3. **Operational Activity & Monitoring**:
+   - **Loan Portfolio Status Breakdown**: Real-time distribution across all 7 lifecycle statuses.
+   - **Monthly Activity (Trailing 6 Months)**: Month-by-month comparative analysis of disbursed capital vs collected repayments with net cashflow calculation.
+   - **Upcoming Installments (Next 7 Days)**: Actionable list of maturing installments with `Due Today` badges.
+   - **Recent Loans & Repayments Tables**: Quick access to latest transactions and loan files.
+
+---
+
+## 10. Phase Roadmap
 
 * **Phase 1 (Completed)**: Foundation, Authentication, Session Guards, CSRF, Common Layouts, Profile & Password Security.
 * **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
@@ -245,4 +269,5 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 * **Phase 4 (Completed)**: Loan Disbursement, Repayment Schedule Generation, Exact Cent Rounding, Concurrency Safety, and Loan Activation.
 * **Phase 5 (Completed)**: Payment Collection, Partial & Full Payments, Overdue Tracking, Automatic Loan Completion & Printable Receipts.
 * **Phase 6 (Completed)**: Reports Central Dashboard, 6 Operational Reports, Filter Persistence, Print Layout, and CSV Export.
-* **Phase 7 (Upcoming)**: Arrears Management & Automated Penalty Calculations.
+* **Phase 7 (Completed)**: Dynamic Professional Dashboard, Trailing 6-Month Activity, Overdue Alerts, and Role-Adapted Overview.
+* **Phase 8 (Upcoming)**: Arrears Management & Automated Penalty Calculations.
