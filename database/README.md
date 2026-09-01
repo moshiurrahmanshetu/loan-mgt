@@ -177,24 +177,72 @@ Phase 6 implements reporting, portfolio summaries, overdue delinquency tracking,
 
 ---
 
+## 8. Phase 8 Schema: Roles, Permissions, Role Permissions & Settings
+
+### Table: `roles` (`roles.sql`)
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `name` VARCHAR(100) NOT NULL
+* `slug` VARCHAR(50) NOT NULL UNIQUE
+* `description` TEXT NULL
+* `is_system` TINYINT(1) NOT NULL DEFAULT 0
+* `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active'
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+### Table: `permissions` (`permissions.sql`)
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `name` VARCHAR(100) NOT NULL
+* `slug` VARCHAR(100) NOT NULL UNIQUE
+* `module` VARCHAR(50) NOT NULL
+* `description` VARCHAR(255) NULL
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+### Table: `role_permissions` (`role_permissions.sql`)
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `role_id` INT UNSIGNED NOT NULL (FK -> `roles.id` ON DELETE CASCADE)
+* `permission_id` INT UNSIGNED NOT NULL (FK -> `permissions.id` ON DELETE CASCADE)
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* Unique Constraint: `(role_id, permission_id)`
+
+### Table: `settings` (`settings.sql`)
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `setting_key` VARCHAR(100) NOT NULL UNIQUE
+* `setting_value` TEXT NULL
+* `setting_type` ENUM('text', 'number', 'boolean', 'image') NOT NULL DEFAULT 'text'
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+### Users Table Extension (`users.sql`)
+* Adds `username` VARCHAR(50) NULL UNIQUE
+* Adds `role_id` INT UNSIGNED NULL (FK -> `roles.id` ON DELETE RESTRICT)
+
+---
+
 ## How to Import via CLI (Fresh Database)
 
 ```bash
 # 1. Import Phase 1: Authentication & Users Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/auth.sql
 
-# 2. Import Phase 2: Customers Schema
+# 2. Import Phase 8 Roles & Permissions (Before Dependent Tables)
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/roles.sql
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/permissions.sql
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/role_permissions.sql
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/settings.sql
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/users.sql
+
+# 3. Import Phase 2: Customers Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/customers.sql
 
-# 3. Import Phase 3: Loan Products Schema
+# 4. Import Phase 3: Loan Products Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/loan_products.sql
 
-# 4. Import Phase 3: Loan Applications Schema
+# 5. Import Phase 3: Loan Applications Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 
-# 5. Import Phase 4: Disbursement & Repayment Schedule Schema
+# 6. Import Phase 4: Disbursement & Repayment Schedule Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
 
-# 6. Import Phase 5: Repayments & Payment Collection Schema
+# 7. Import Phase 5: Repayments & Payment Collection Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 ```

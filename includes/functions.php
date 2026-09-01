@@ -178,6 +178,151 @@ function get_role_label(string $role): string
 }
 
 /**
+ * Retrieves a system setting value with in-memory static cache.
+ *
+ * @param string $key Setting key
+ * @param mixed $default Fallback value if setting not found
+ * @param bool $refresh Force reload from database
+ * @return mixed
+ */
+function get_setting(string $key, $default = null, bool $refresh = false)
+{
+    static $settingsCache = null;
+    if ($settingsCache === null || $refresh) {
+        try {
+            $db = get_db_connection();
+            $stmt = $db->query('SELECT setting_key, setting_value FROM settings');
+            $settingsCache = [];
+            while ($row = $stmt->fetch()) {
+                $settingsCache[$row['setting_key']] = $row['setting_value'];
+            }
+        } catch (Exception $e) {
+            $settingsCache = [];
+        }
+    }
+    return $settingsCache[$key] ?? $default;
+}
+
+/**
+ * Updates or inserts a system setting.
+ *
+ * @param string $key
+ * @param mixed $value
+ * @param string $type 'text'|'number'|'boolean'|'image'
+ * @return bool
+ */
+function update_setting(string $key, $value, string $type = 'text'): bool
+{
+    try {
+        $db = get_db_connection();
+        $stmt = $db->prepare('
+            INSERT INTO settings (setting_key, setting_value, setting_type) 
+            VALUES (:key, :val, :type) 
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), setting_type = VALUES(setting_type)
+        ');
+        $res = $stmt->execute([':key' => $key, ':val' => $value, ':type' => $type]);
+        get_setting($key, null, true);
+        return $res;
+    } catch (Exception $e) {
+        error_log('Error updating setting: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Returns the URL for the system branding logo or null.
+ *
+ * @return string|null
+ */
+function get_system_logo_url(): ?string
+{
+    $logoFilename = get_setting('system_logo');
+    if (!empty($logoFilename)) {
+        $filePath = SETTINGS_UPLOAD_DIR . DIRECTORY_SEPARATOR . $logoFilename;
+        if (file_exists($filePath)) {
+            return SETTINGS_UPLOAD_URL . '/' . rawurlencode($logoFilename);
+        }
+    }
+    return null;
+}
+
+/**
+ * Checks whether the authenticated user has a specific granular permission.
+ *
+ * @param string $permissionSlug
+ * @return bool
+ */
+function has_permission(string $permissionSlug): bool
+{
+    if (!is_logged_in()) {
+        return false;
+    }
+
+    $user = auth_user();
+    if (!$user) {
+        return false;
+    }
+
+    // Administrator role slug always has full access
+    if (($user['role'] ?? '') === 'admin') {
+        return true;
+    }
+
+    static $userPermissions = [];
+    $userId = (int)$user['id'];
+
+    if (!isset($userPermissions[$userId])) {
+        try {
+            $db = get_db_connection();
+            $stmt = $db->prepare("
+                SELECT p.slug
+                FROM permissions p
+                JOIN role_permissions rp ON p.id = rp.permission_id
+                JOIN users u ON u.role_id = rp.role_id
+                WHERE u.id = :uid AND u.status = 'active'
+            ");
+            $stmt->execute([':uid' => $userId]);
+            $userPermissions[$userId] = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        } catch (Exception $e) {
+            $userPermissions[$userId] = [];
+        }
+    }
+
+    return in_array($permissionSlug, $userPermissions[$userId], true);
+}
+
+/**
+ * Enforces server-side permission requirement, redirecting with a flash error if unauthorized.
+ *
+ * @param string $permissionSlug
+ * @return void
+ */
+function require_permission(string $permissionSlug): void
+{
+    if (!has_permission($permissionSlug)) {
+        set_flash('danger', 'Unauthorized: You do not have permission to access this resource.');
+        redirect('modules/dashboard/index.php');
+    }
+}
+
+/**
+ * Formats a date string using the configured system date format.
+ *
+ * @param string|null $date
+ * @param string|null $format Optional override format
+ * @return string
+ */
+function format_date(?string $date, ?string $format = null): string
+{
+    if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+        return '—';
+    }
+    $fmt = $format !== null ? $format : get_setting('date_format', 'M d, Y');
+    $ts = strtotime($date);
+    return $ts ? date($fmt, $ts) : (string)$date;
+}
+
+/**
  * Returns the URL for a user's avatar image or a clean local fallback avatar.
  *
  * @param string|null $avatarFilename
@@ -289,10 +434,11 @@ function get_customer_photo_url(?string $photoFilename = null, string $name = 'C
  * @param string $symbol
  * @return string
  */
-function format_currency($amount, string $symbol = '$'): string
+function format_currency($amount, ?string $symbol = null): string
 {
     $val = (float)($amount ?? 0);
-    return $symbol . number_format($val, 2, '.', ',');
+    $sym = $symbol !== null ? $symbol : get_setting('currency_symbol', '$');
+    return $sym . number_format($val, 2, '.', ',');
 }
 
 /**

@@ -1,14 +1,18 @@
 <?php
 /**
  * Master Sidebar Navigation Component
- * Loan Management System (loan-mgt) - Phase 6
+ * Loan Management System (loan-mgt) - Phase 8
  */
 
 require_once __DIR__ . '/functions.php';
 
 $activeNav = $activeNav ?? 'dashboard';
-$userRole  = $_SESSION['user_role'] ?? 'loan_officer';
-$canViewReports = has_role(['admin', 'manager', 'loan_officer', 'collector']);
+$canViewReports     = has_permission('reports.view') || has_role(['admin', 'manager', 'loan_officer', 'collector']);
+$canViewUsers       = has_permission('users.view') || has_role('admin');
+$canViewRoles       = has_permission('roles.view') || has_role('admin');
+$canViewSettings    = has_permission('settings.view') || has_role('admin');
+$canViewManagement  = $canViewUsers || $canViewRoles || $canViewSettings;
+$systemNameDisplay  = get_setting('system_name', APP_SHORT_NAME);
 ?>
 <aside id="sidebar" aria-label="Main Navigation">
     <div class="sidebar-header">
@@ -16,7 +20,7 @@ $canViewReports = has_role(['admin', 'manager', 'loan_officer', 'collector']);
             <div class="brand-icon">
                 <i class="bi bi-bank2"></i>
             </div>
-            <span>LoanMgt</span>
+            <span><?php echo e($systemNameDisplay); ?></span>
         </a>
     </div>
 
@@ -77,25 +81,39 @@ $canViewReports = has_role(['admin', 'manager', 'loan_officer', 'collector']);
             </li>
         <?php endif; ?>
 
-        <li class="sidebar-heading"><span>Management</span></li>
+        <?php if ($canViewManagement): ?>
+            <li class="sidebar-heading"><span>Management</span></li>
 
-        <!-- Users Management (Future Phase Safe Placeholder) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="User Management (Upcoming)">
-                <i class="bi bi-person-badge"></i>
-                <span>Users</span>
-                <span class="sidebar-badge">Soon</span>
-            </a>
-        </li>
+            <!-- Users Management (Active in Phase 8) -->
+            <?php if ($canViewUsers): ?>
+                <li class="sidebar-item <?php echo $activeNav === 'users' ? 'active' : ''; ?>">
+                    <a href="<?php echo url('modules/users/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="User Management">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
-        <!-- Settings (Future Phase Safe Placeholder) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings (Upcoming)">
-                <i class="bi bi-gear"></i>
-                <span>Settings</span>
-                <span class="sidebar-badge">Soon</span>
-            </a>
-        </li>
+            <!-- Roles & Permissions (Active in Phase 8) -->
+            <?php if ($canViewRoles): ?>
+                <li class="sidebar-item <?php echo in_array($activeNav, ['roles', 'permissions'], true) ? 'active' : ''; ?>">
+                    <a href="<?php echo url('modules/roles/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Roles & Permissions">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Roles & Permissions</span>
+                    </a>
+                </li>
+            <?php endif; ?>
+
+            <!-- Settings (Active in Phase 8) -->
+            <?php if ($canViewSettings): ?>
+                <li class="sidebar-item <?php echo $activeNav === 'settings' ? 'active' : ''; ?>">
+                    <a href="<?php echo url('modules/settings/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            <?php endif; ?>
+        <?php endif; ?>
     </ul>
 
     <div class="sidebar-footer">

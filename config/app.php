@@ -11,7 +11,7 @@ if (!defined('ROOT_PATH')) {
 // Application Metadata
 define('APP_NAME', 'Loan Management System');
 define('APP_SHORT_NAME', 'LoanMgt');
-define('APP_VERSION', '7.0.0 (Phase 7)');
+define('APP_VERSION', '8.0.0 (Phase 8)');
 define('APP_ENV', 'development'); // 'development' or 'production'
 
 // Calculate Base URL dynamically for portability across XAMPP, virtual hosts, and production
@@ -50,3 +50,10 @@ define('CUSTOMER_UPLOAD_URL', BASE_URL . '/uploads/customers');
 define('MAX_CUSTOMER_PHOTO_SIZE', 2 * 1024 * 1024); // 2MB
 define('ALLOWED_CUSTOMER_PHOTO_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
 define('ALLOWED_CUSTOMER_PHOTO_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);
+
+// System Settings & Branding (Phase 8)
+define('SETTINGS_UPLOAD_DIR', UPLOAD_DIR . DIRECTORY_SEPARATOR . 'settings');
+define('SETTINGS_UPLOAD_URL', BASE_URL . '/uploads/settings');
+define('MAX_LOGO_SIZE', 2 * 1024 * 1024); // 2MB
+define('ALLOWED_LOGO_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
+define('ALLOWED_LOGO_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);
