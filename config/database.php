@@ -1,0 +1,67 @@
+<?php
+/**
+ * Database Configuration & PDO Connection
+ * Loan Management System (loan-mgt) - Phase 1
+ */
+
+if (!defined('DB_HOST')) {
+    define('DB_HOST', '127.0.0.1');
+    define('DB_PORT', '3306');
+    define('DB_NAME', 'loan_mgt');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+    define('DB_CHARSET', 'utf8mb4');
+}
+
+/**
+ * Get the centralized PDO database connection instance.
+ *
+ * @return PDO
+ */
+function get_db_connection(): PDO
+{
+    static $pdo = null;
+
+    if ($pdo === null) {
+        $dsn = sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+            DB_HOST,
+            DB_PORT,
+            DB_NAME,
+            DB_CHARSET
+        );
+
+        $options = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET . " COLLATE utf8mb4_unicode_ci",
+        ];
+
+        try {
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        } catch (PDOException $e) {
+            // Log full error securely for server admins
+            error_log('Database Connection Error: ' . $e->getMessage());
+
+            // Never expose raw credentials or internal database errors to end users
+            if (defined('APP_ENV') && APP_ENV === 'development' && php_sapi_name() === 'cli') {
+                throw new PDOException('Database connection failed: ' . $e->getMessage());
+            }
+
+            http_response_code(500);
+            die(
+                '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Service Unavailable</title>' .
+                '<style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;color:#1e293b;}' .
+                '.card{background:#fff;border:1px solid #e2e8f0;padding:2rem;border-radius:8px;max-width:500px;text-align:center;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);}' .
+                'h1{font-size:1.25rem;margin:0 0 0.5rem;color:#0f172a;}p{color:#64748b;margin:0;line-height:1.5;}</style></head>' .
+                '<body><div class="card"><h1>Database Connection Error</h1><p>Unable to connect to the database service. Please verify that MySQL is running and the database is configured properly.</p></div></body></html>'
+            );
+        }
+    }
+
+    return $pdo;
+}
+
+// Convenient global PDO instance for scripts
+$pdo = get_db_connection();
