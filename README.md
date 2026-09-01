@@ -1,4 +1,4 @@
-# Loan Management System (`loan-mgt`) — Phase 4
+# Loan Management System (`loan-mgt`) — Phase 5
 
 A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**, **MySQL**, **Bootstrap 5**, and **Bootstrap Icons**.
 
@@ -6,7 +6,7 @@ A robust, enterprise-grade **Loan Management System** built with **Raw PHP 8+**,
 
 ## 1. Project Purpose & Architecture
 
-`loan-mgt` is designed for financial institutions, microfinance organizations, and credit unions to manage loan origination, customer portfolios, repayment schedules, risk assessment, and financial compliance.
+`loan-mgt` is designed for financial institutions, microfinance organizations, and credit unions to manage loan origination, customer portfolios, repayment schedules, risk assessment, collection operations, and financial compliance.
 
 This codebase is architected using **pure native PHP 8+ and MySQL** without external PHP frameworks (no Laravel, Symfony, or CodeIgniter), strictly adhering to enterprise security baselines, modular database schemas, role-based authorization, and clean architectural separation.
 
@@ -62,19 +62,20 @@ loan-mgt/
 │   ├── loan_products.sql       # Step 3: Loan product templates (FK to users.id)
 │   ├── loans.sql               # Step 4: Loan applications & contract snapshot (FK to customers, loan_products, users)
 │   ├── disbursement.sql        # Step 5: Loan disbursement columns & loan_installments schedule table
-│   └── README.md               # Database setup and 5-step import sequence
+│   ├── payments.sql            # Step 6: Loan completion status & loan_payments transactions ledger
+│   └── README.md               # Database setup and 6-step import sequence
 ├── includes/
 │   ├── header.php              # HTML head, CSS imports, meta tags, security headers
 │   ├── footer.php              # Footer markup, JS bundle imports
 │   ├── navbar.php              # Topbar with sidebar toggle, user badge, profile dropdown
-│   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans)
+│   ├── sidebar.php             # Responsive collapsible sidebar (Dashboard, Customers, Loan Products, Loans, Repayments)
 │   ├── auth-check.php          # Protected page access guard & no-cache headers
 │   ├── guest-check.php         # Guest guard (redirects authenticated users to dashboard)
-│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, schedule math
+│   ├── functions.php           # Security helpers, CSRF, auth checks, number generators, payment & schedule math
 │   └── flash.php               # Session-based alert banner system
 ├── modules/
 │   ├── dashboard/
-│   │   └── index.php           # System dashboard with live loan, customer & disbursement metrics
+│   │   └── index.php           # System dashboard with live loan, customer, repayment & delinquency metrics
 │   ├── profile/
 │   │   ├── index.php           # User profile view (details, security, avatar)
 │   │   ├── update.php          # POST handler for updating name/email/phone
@@ -84,7 +85,7 @@ loan-mgt/
 │   │   ├── index.php           # Customer portfolio listing, search, status filter & pagination
 │   │   ├── create.php          # Customer registration form
 │   │   ├── store.php           # Customer registration POST handler & server-side validation
-│   │   ├── view.php            # Customer details profile & linked loan history
+│   │   ├── view.php            # Customer details profile, KYC data & linked loan history
 │   │   ├── edit.php            # Customer profile editing form
 │   │   ├── update.php          # Customer update POST handler & photo replacement
 │   │   ├── delete.php          # Safe customer deletion POST handler (Admin only)
@@ -98,19 +99,27 @@ loan-mgt/
 │   │   ├── update.php          # Update product POST handler
 │   │   ├── delete.php          # Safe product deletion (blocked if referenced by loans)
 │   │   └── toggle-status.php   # Toggle product active/inactive status
-│   └── loans/
-│       ├── index.php           # Loan applications listing, search, status filter & pagination
-│       ├── create.php          # Interactive loan application form with real-time preview
-│       ├── store.php           # Application POST handler (Draft vs Submit, full server validation)
-│       ├── view.php            # Comprehensive loan file, snapshot terms, disbursement audit & schedule
-│       ├── edit.php            # Edit application form (Draft / Pending only)
-│       ├── update.php          # Update application POST handler
-│       ├── cancel.php          # Cancel draft/pending application handler
-│       ├── approve.php         # Underwriting approval handler (Admin/Manager, self-approval blocked)
-│       ├── reject.php          # Underwriting rejection handler (records reason)
-│       ├── disburse.php        # Disbursement confirmation screen with parameters & preview
-│       ├── process-disbursement.php # Atomic POST handler: row lock, status activation & schedule insert
-│       └── schedule.php        # Standalone printable repayment schedule view
+│   ├── loans/
+│   │   ├── index.php           # Loan applications listing, search, status filter & pagination
+│   │   ├── create.php          # Interactive loan application form with real-time preview
+│   │   ├── store.php           # Application POST handler (Draft vs Submit, full server validation)
+│   │   ├── view.php            # Comprehensive loan file, snapshot terms, disbursement audit & schedule
+│   │   ├── edit.php            # Edit application form (Draft / Pending only)
+│   │   ├── update.php          # Update application POST handler
+│   │   ├── cancel.php          # Cancel draft/pending application handler
+│   │   ├── approve.php         # Underwriting approval handler (Admin/Manager, self-approval blocked)
+│   │   ├── reject.php          # Underwriting rejection handler (records reason)
+│   │   ├── disburse.php        # Disbursement confirmation screen with parameters & preview
+│   │   ├── process-disbursement.php # Atomic POST handler: row lock, status activation & schedule insert
+│   │   └── schedule.php        # Standalone printable repayment schedule view
+│   └── repayments/
+│       ├── index.php           # Repayment & collection dashboard, active portfolio & quick action links
+│       ├── view.php            # Loan repayment file, installment amortization ledger & payment history
+│       ├── collect.php         # Payment collection form with installment switcher & balance check
+│       ├── process-payment.php # Transactional POST handler: overpayment guard, balance update & loan completion
+│       ├── receipt.php         # Official printable payment receipt (@media print layout)
+│       ├── payment-history.php # Global payment transactions history with date/method filters & search
+│       └── overdue.php         # Overdue delinquent installments tracking with days-late calculation
 ├── uploads/
 │   ├── avatars/
 │   │   └── .htaccess           # Security: Block script execution & disable directory listing
@@ -143,6 +152,9 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 
 # 5. Import Phase 4: Disbursement & Repayment Schedule Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
+
+# 6. Import Phase 5: Repayments & Payment Collection Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 ```
 *(Press Enter when prompted for password if using default XAMPP credentials)*
 
@@ -154,6 +166,7 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
 5. Import `database/loan_products.sql` third.
 6. Import `database/loans.sql` fourth.
 7. Import `database/disbursement.sql` fifth.
+8. Import `database/payments.sql` sixth.
 
 ---
 
@@ -168,9 +181,6 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 ```
-
-### Base URL Configuration (`config/app.php`)
-`config/app.php` automatically determines the application's base URL dynamically from `$_SERVER['HTTP_HOST']` and document root paths.
 
 ---
 
@@ -192,7 +202,7 @@ define('DB_CHARSET', 'utf8mb4');
 | **Sign In / Out & Session** | Yes | Yes | Yes | Yes |
 | **Dashboard Access** | Yes | Yes | Yes | Yes |
 | **Manage Own Profile & Password** | Yes | Yes | Yes | Yes |
-| **View Customer Portfolio (`index.php`, `view.php`)** | Yes | Yes | Yes | Yes |
+| **View Customer Portfolio (`customers/`)** | Yes | Yes | Yes | Yes |
 | **Register / Edit Customer** | Yes | Yes | Yes | No |
 | **Activate / Deactivate Customer** | Yes | Yes | No | No |
 | **Delete Customer** | Yes | No | No | No |
@@ -200,7 +210,7 @@ define('DB_CHARSET', 'utf8mb4');
 | **Create / Edit / Toggle Loan Products** | Yes | Yes | No | No |
 | **Delete Loan Product (Safe check)** | Yes | No | No | No |
 | **View Loan Applications (`loans/`)** | Yes | Yes | Yes | Yes |
-| **Originate Loan Application (`create.php`, `store.php`)** | Yes | Yes | Yes | No |
+| **Originate Loan Application (`create.php`)** | Yes | Yes | Yes | No |
 | **Edit Draft Loan Application** | Yes | Yes | Yes (Own) | No |
 | **Edit Pending Loan Application** | Yes | Yes | No | No |
 | **Approve / Reject Loan Application** | Yes | Yes | No | No |
@@ -208,24 +218,26 @@ define('DB_CHARSET', 'utf8mb4');
 | **Cancel Draft / Pending Loan** | Yes | Yes | Yes (Own) | No |
 | **Disburse Approved Loan (`disburse.php`)** | Yes | Yes | No | No |
 | **View Repayment Schedule (`schedule.php`)** | Yes | Yes | Yes | Yes |
+| **View Repayments Dashboard (`repayments/`)** | Yes | Yes | Yes | Yes |
+| **Collect Repayment (`collect.php`)** | Yes | Yes | **Blocked** | **Yes** |
+| **View Payment History & Print Receipts** | Yes | Yes | Yes | Yes |
+| **View Overdue Delinquency Tracking** | Yes | Yes | Yes | Yes |
 
 ---
 
-## 9. Financial Calculation & Disbursement Safety
+## 9. Repayment & Collection Business Rules
 
-### Flat Rate Calculations & Exact Cent Balancing
-* **Total Interest**: `Principal × (Interest Rate / 100)`
-* **Total Payable**: `Principal + Total Interest`
-* **Installment Breakdown**:
-  * Base Principal = `round(Principal / Installments, 2)`
-  * Base Interest = `round(Total Interest / Installments, 2)`
-  * Final installment absorbs any rounding delta: $\sum \text{Installments} \equiv \text{Total Payable}$.
-* *Processing fee is collected upfront and displayed separately from repayment obligations.*
+### Payment Application & Allocation
+* Payments are applied directly to the target installment.
+* $0 < \text{Payment Amount} \le \text{Remaining Balance}$. Overpayment is strictly rejected server-side.
+* **Partial Payment**: Updates `paid_amount`, computes `remaining_amount`, and sets installment status to `'partial'`.
+* **Full Payment**: Updates `paid_amount = installment_amount`, `remaining_amount = 0.00`, and sets installment status to `'paid'` with `paid_date = payment_date`.
 
-### Concurrency & Re-Disbursement Lock
-Loan disbursement runs inside an atomic MySQL transaction with `SELECT ... FOR UPDATE` row locking.
-- Only loans with `status = 'approved'` and `disbursement_date IS NULL` are eligible.
-- Double disbursement attempts are trapped and safely rejected with 0 duplicate schedules.
+### Automatic Loan Completion
+When all installments for a loan reach `'paid'` status (`remaining_amount == 0.00`), the loan status is automatically transitioned from `'active'` to `'completed'`. Further payment collections on completed loans are blocked.
+
+### Overdue Detection
+Installments where `due_date < CURDATE() AND remaining_amount > 0` on active loans are automatically recognized as overdue. Days overdue are computed dynamically from the current date.
 
 ---
 
@@ -235,6 +247,6 @@ Loan disbursement runs inside an atomic MySQL transaction with `SELECT ... FOR U
 * **Phase 2 (Completed)**: Customer Management Module, Sequential Code Generation, Search/Filter/Pagination, Photo Upload Sandbox, Role Restrictions.
 * **Phase 3 (Completed)**: Loan Products Management, Loan Application Origination, Contract Snapshots, Underwriting Workflow & Self-Approval Prevention.
 * **Phase 4 (Completed)**: Loan Disbursement, Repayment Schedule Generation, Exact Cent Rounding, Concurrency Safety, and Loan Activation.
-* **Phase 5 (Upcoming)**: Payment Collections & Repayment Ledger (`repayments.sql`).
-* **Phase 6 (Upcoming)**: Arrears & Delinquency Management.
+* **Phase 5 (Completed)**: Payment Collection, Partial & Full Payments, Overdue Tracking, Automatic Loan Completion & Printable Receipts.
+* **Phase 6 (Upcoming)**: Arrears Management & Penalty Calculations.
 * **Phase 7 (Upcoming)**: Financial Reporting & Audit Analytics.

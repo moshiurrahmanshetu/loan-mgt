@@ -121,10 +121,18 @@ require_once __DIR__ . '/../../includes/header.php';
             </a>
         <?php endif; ?>
 
-        <?php if ($isActive): ?>
+        <?php if ($isActive || $loan['status'] === 'completed'): ?>
+            <a href="<?php echo url('modules/repayments/view.php?loan_id=' . $loan['id']); ?>" class="btn btn-outline-primary">
+                <i class="bi bi-wallet2 me-1"></i> Repayment Ledger
+            </a>
             <a href="<?php echo url('modules/loans/schedule.php?id=' . $loan['id']); ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-calendar-check me-1"></i> View Schedule
             </a>
+            <?php if ($isActive && can_collect_payments() && $totalRemaining > 0): ?>
+                <a href="<?php echo url('modules/repayments/collect.php?loan_id=' . $loan['id']); ?>" class="btn btn-success">
+                    <i class="bi bi-cash me-1"></i> Collect Payment
+                </a>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ($isEditable): ?>

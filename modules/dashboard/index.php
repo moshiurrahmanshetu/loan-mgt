@@ -1,7 +1,7 @@
 <?php
 /**
  * Dashboard View
- * Loan Management System (loan-mgt) - Phase 4
+ * Loan Management System (loan-mgt) - Phase 5
  */
 
 $pageTitle = 'Dashboard';
@@ -25,11 +25,13 @@ $lastLoginDisplay = !empty($userRecord['last_login'])
     ? date('F j, Y, g:i a', strtotime($userRecord['last_login'])) 
     : 'First session recorded';
 
-// Fetch Phase 2 Customer summary metrics
+$today = date('Y-m-d');
+
+// Fetch Customer metrics
 $totalCustStmt = $db->query('SELECT COUNT(*) FROM customers');
 $totalCustomers = (int)$totalCustStmt->fetchColumn();
 
-// Fetch Phase 3 & 4 Loan metrics
+// Fetch Loan metrics
 $totalLoansStmt = $db->query('SELECT COUNT(*) FROM loans');
 $totalLoans = (int)$totalLoansStmt->fetchColumn();
 
@@ -39,8 +41,28 @@ $pendingLoans = (int)$pendingLoansStmt->fetchColumn();
 $activeLoansStmt = $db->query("SELECT COUNT(*) FROM loans WHERE status = 'active'");
 $activeLoans = (int)$activeLoansStmt->fetchColumn();
 
-$disbursedVolumeStmt = $db->query("SELECT COALESCE(SUM(disbursed_amount), 0) FROM loans WHERE status = 'active'");
+$disbursedVolumeStmt = $db->query("SELECT COALESCE(SUM(disbursed_amount), 0) FROM loans WHERE status IN ('active', 'completed')");
 $disbursedVolume = (float)$disbursedVolumeStmt->fetchColumn();
+
+// Fetch Repayment metrics
+$totalOutstandingStmt = $db->query("
+    SELECT COALESCE(SUM(remaining_amount), 0) 
+    FROM loan_installments li 
+    JOIN loans l ON li.loan_id = l.id 
+    WHERE l.status = 'active' AND li.remaining_amount > 0
+");
+$totalOutstanding = (float)$totalOutstandingStmt->fetchColumn();
+
+$todayCollectionStmt = $db->query("SELECT COALESCE(SUM(amount), 0) FROM loan_payments WHERE payment_date = '{$today}'");
+$todayCollection = (float)$todayCollectionStmt->fetchColumn();
+
+$overdueCountStmt = $db->query("
+    SELECT COUNT(*) 
+    FROM loan_installments li 
+    JOIN loans l ON li.loan_id = l.id 
+    WHERE l.status = 'active' AND li.due_date < '{$today}' AND li.remaining_amount > 0
+");
+$overdueCount = (int)$overdueCountStmt->fetchColumn();
 
 $activeProductsStmt = $db->query("SELECT COUNT(*) FROM loan_products WHERE status = 'active'");
 $activeProducts = (int)$activeProductsStmt->fetchColumn();
@@ -71,58 +93,58 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <!-- System & Portfolio Metrics Grid -->
 <div class="row g-3 mb-4">
-    <!-- Total Customers Card -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 mb-0 shadow-sm">
-            <div class="card-body p-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Borrowers</span>
-                    <i class="bi bi-people-fill text-primary fs-5"></i>
-                </div>
-                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($totalCustomers); ?></div>
-                <div class="small text-muted">Registered customer profiles</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Active Disbursed Loans Card -->
+    <!-- Active Loans & Outstanding Portfolio -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <span class="text-muted small text-uppercase fw-semibold">Active Portfolio</span>
-                    <i class="bi bi-check2-circle text-success fs-5"></i>
+                    <i class="bi bi-check2-circle text-primary fs-5"></i>
                 </div>
-                <div class="h4 mb-1 fw-bold text-success"><?php echo number_format($activeLoans); ?> Active</div>
-                <div class="small text-muted">Disbursed: <?php echo format_currency($disbursedVolume); ?></div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($activeLoans); ?> Active</div>
+                <div class="small text-muted">Outstanding: <span class="fw-semibold text-danger"><?php echo format_currency($totalOutstanding); ?></span></div>
             </div>
         </div>
     </div>
 
-    <!-- Pending Approvals Card -->
+    <!-- Today's Collections -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Pending Review</span>
-                    <span class="badge badge-status-pending">Underwriting</span>
+                    <span class="text-muted small text-uppercase fw-semibold">Today's Collections</span>
+                    <i class="bi bi-cash-stack text-success fs-5"></i>
                 </div>
-                <div class="h4 mb-1 fw-bold text-warning"><?php echo number_format($pendingLoans); ?></div>
-                <div class="small text-muted">Awaiting credit decision</div>
+                <div class="h4 mb-1 fw-bold text-success"><?php echo format_currency($todayCollection); ?></div>
+                <div class="small text-muted">Received today (<?php echo date('M d'); ?>)</div>
             </div>
         </div>
     </div>
 
-    <!-- Loan Products Card -->
+    <!-- Overdue Delinquency -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 mb-0 shadow-sm">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small text-uppercase fw-semibold">Active Products</span>
-                    <i class="bi bi-tags-fill text-info fs-5"></i>
+                    <span class="text-muted small text-uppercase fw-semibold">Overdue Risk</span>
+                    <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
                 </div>
-                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($activeProducts); ?></div>
-                <div class="small text-muted">Available loan templates</div>
+                <div class="h4 mb-1 fw-bold text-danger"><?php echo number_format($overdueCount); ?> Installments</div>
+                <div class="small text-muted">Past scheduled due date</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Borrowers -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 mb-0 shadow-sm">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Registered Borrowers</span>
+                    <i class="bi bi-people-fill text-info fs-5"></i>
+                </div>
+                <div class="h4 mb-1 fw-bold text-dark"><?php echo number_format($totalCustomers); ?></div>
+                <div class="small text-muted">Customer profiles on file</div>
             </div>
         </div>
     </div>
@@ -137,16 +159,16 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="bi bi-layers text-primary fs-5"></i>
                     <h3 class="h6 mb-0 fw-bold">System Scope & Phase Roadmap</h3>
                 </div>
-                <span class="badge bg-primary px-2.5 py-1.5">Phase 4 Active</span>
+                <span class="badge bg-primary px-2.5 py-1.5">Phase 5 Active</span>
             </div>
             <div class="card-body p-4">
                 <p class="text-muted">
-                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. The system is currently running <strong>Phase 4: Loan Disbursement & Repayment Schedule</strong>.
+                    Welcome to the <strong>Loan Management System (loan-mgt)</strong>. The system is currently running <strong>Phase 5: Payment Collection & Repayment Management</strong>.
                 </p>
                 <div class="p-3 bg-light rounded border mb-4">
-                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Underwriting & Disbursement Summary</div>
+                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i> Repayment & Collection Summary</div>
                     <p class="text-muted small mb-0">
-                        Loan origination, underwriting approval workflows, atomic loan disbursement with concurrency locking, and mathematical repayment schedule generation with exact cent rounding are fully operational. Payment collections and overdue tracking are scheduled for subsequent phases.
+                        Full payment, partial payment, overpayment protection, overdue delinquency tracking, automatic loan completion, and printable transaction receipts are operational with complete role-based segregation.
                     </p>
                 </div>
 
@@ -197,7 +219,19 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-6">
                         <div class="d-flex align-items-center gap-2 text-dark">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span>Installment Amortization Views (Phase 4)</span>
+                            <span>Payment Collection & Partial Payments (Phase 5)</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center gap-2 text-dark">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Overdue Delinquency Tracking (Phase 5)</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center gap-2 text-dark">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Printable Payment Receipts (Phase 5)</span>
                         </div>
                     </div>
                 </div>
@@ -212,45 +246,43 @@ require_once __DIR__ . '/../../includes/header.php';
                 <h4 class="h6 mb-0 fw-bold"><i class="bi bi-lightning-charge me-2 text-primary"></i> Operations Quick Links</h4>
             </div>
             <div class="list-group list-group-flush small">
+                <a href="<?php echo url('modules/repayments/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
+                    <div>
+                        <strong class="d-block text-dark">Repayment & Collection Center</strong>
+                        <span class="text-muted">Manage active loan repayments</span>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+
+                <a href="<?php echo url('modules/repayments/overdue.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
+                    <div>
+                        <strong class="d-block text-dark">Overdue Delinquency (<?php echo $overdueCount; ?>)</strong>
+                        <span class="text-muted">Review delinquent installments</span>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+
+                <a href="<?php echo url('modules/repayments/payment-history.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
+                    <div>
+                        <strong class="d-block text-dark">Payment Transactions History</strong>
+                        <span class="text-muted">View collection receipts & audit log</span>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+
+                <a href="<?php echo url('modules/loans/index.php?status=approved'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
+                    <div>
+                        <strong class="d-block text-dark">Approved Loans (Pending Disbursement)</strong>
+                        <span class="text-muted">Release funds & activate schedules</span>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+
                 <?php if (can_create_loans()): ?>
                     <a href="<?php echo url('modules/loans/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
                         <div>
                             <strong class="d-block text-dark">New Loan Application</strong>
-                            <span class="text-muted">Originate loan with live calculation</span>
-                        </div>
-                        <i class="bi bi-chevron-right text-muted"></i>
-                    </a>
-                <?php endif; ?>
-
-                <a href="<?php echo url('modules/loans/index.php?status=approved'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
-                    <div>
-                        <strong class="d-block text-dark">Approved Loans (Ready for Disbursement)</strong>
-                        <span class="text-muted">Process payment release & schedules</span>
-                    </div>
-                    <i class="bi bi-chevron-right text-muted"></i>
-                </a>
-
-                <a href="<?php echo url('modules/loans/index.php?status=active'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
-                    <div>
-                        <strong class="d-block text-dark">Active Loan Portfolio</strong>
-                        <span class="text-muted">View active loans and repayment schedules</span>
-                    </div>
-                    <i class="bi bi-chevron-right text-muted"></i>
-                </a>
-
-                <a href="<?php echo url('modules/customers/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
-                    <div>
-                        <strong class="d-block text-dark">Customer Directory</strong>
-                        <span class="text-muted">Browse customer KYC records</span>
-                    </div>
-                    <i class="bi bi-chevron-right text-muted"></i>
-                </a>
-
-                <?php if (can_manage_loan_products()): ?>
-                    <a href="<?php echo url('modules/loan-products/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3">
-                        <div>
-                            <strong class="d-block text-dark">Loan Products Catalog</strong>
-                            <span class="text-muted">Manage product parameters & limits</span>
+                            <span class="text-muted">Originate loan application</span>
                         </div>
                         <i class="bi bi-chevron-right text-muted"></i>
                     </a>

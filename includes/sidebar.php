@@ -1,7 +1,7 @@
 <?php
 /**
  * Master Sidebar Navigation Component
- * Loan Management System (loan-mgt) - Phase 1
+ * Loan Management System (loan-mgt) - Phase 5
  */
 
 require_once __DIR__ . '/functions.php';
@@ -21,7 +21,7 @@ $activeNav = $activeNav ?? 'dashboard';
     <ul class="sidebar-menu">
         <li class="sidebar-heading"><span>Main Menu</span></li>
         
-        <!-- Dashboard (Active in Phase 1) -->
+        <!-- Dashboard (Active) -->
         <li class="sidebar-item <?php echo $activeNav === 'dashboard' ? 'active' : ''; ?>">
             <a href="<?php echo url('modules/dashboard/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
                 <i class="bi bi-grid-1x2-fill"></i>
@@ -31,7 +31,7 @@ $activeNav = $activeNav ?? 'dashboard';
 
         <li class="sidebar-heading"><span>Loan Operations</span></li>
         
-        <!-- Customers (Active in Phase 2) -->
+        <!-- Customers (Active) -->
         <li class="sidebar-item <?php echo $activeNav === 'customers' ? 'active' : ''; ?>">
             <a href="<?php echo url('modules/customers/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Customers">
                 <i class="bi bi-people"></i>
@@ -39,7 +39,7 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <!-- Loan Products (Active in Phase 3) -->
+        <!-- Loan Products (Active) -->
         <li class="sidebar-item <?php echo $activeNav === 'loan-products' ? 'active' : ''; ?>">
             <a href="<?php echo url('modules/loan-products/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Loan Products">
                 <i class="bi bi-tags"></i>
@@ -47,7 +47,7 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <!-- Loans (Active in Phase 3) -->
+        <!-- Loans (Active) -->
         <li class="sidebar-item <?php echo $activeNav === 'loans' ? 'active' : ''; ?>">
             <a href="<?php echo url('modules/loans/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Loan Applications">
                 <i class="bi bi-cash-stack"></i>
@@ -55,38 +55,37 @@ $activeNav = $activeNav ?? 'dashboard';
             </a>
         </li>
 
-        <!-- Repayments (Phase 4 Coming Soon) -->
-        <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="Repayments (Phase 4)">
+        <!-- Repayments (Active in Phase 5) -->
+        <li class="sidebar-item <?php echo $activeNav === 'repayments' ? 'active' : ''; ?>">
+            <a href="<?php echo url('modules/repayments/index.php'); ?>" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Repayment & Collection">
                 <i class="bi bi-calendar2-check"></i>
                 <span>Repayments</span>
-                <span class="sidebar-badge">Soon</span>
             </a>
         </li>
 
         <li class="sidebar-heading"><span>Management</span></li>
 
-        <!-- Reports (Future Phase) -->
+        <!-- Reports (Future Phase Safe Placeholder) -->
         <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="Reports (Upcoming)">
+            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="Financial Reports (Upcoming Phase 7)">
                 <i class="bi bi-bar-chart-line"></i>
                 <span>Reports</span>
                 <span class="sidebar-badge">Soon</span>
             </a>
         </li>
 
-        <!-- Users Management (Future Phase) -->
+        <!-- Users Management (Future Phase Safe Placeholder) -->
         <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="User Management (Upcoming)">
+            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="User Management (Upcoming)">
                 <i class="bi bi-person-badge"></i>
                 <span>Users</span>
                 <span class="sidebar-badge">Soon</span>
             </a>
         </li>
 
-        <!-- Settings (Future Phase) -->
+        <!-- Settings (Future Phase Safe Placeholder) -->
         <li class="sidebar-item">
-            <a href="javascript:void(0)" class="sidebar-link disabled" data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings (Upcoming)">
+            <a href="javascript:void(0)" class="sidebar-link disabled" aria-disabled="true" data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings (Upcoming)">
                 <i class="bi bi-gear"></i>
                 <span>Settings</span>
                 <span class="sidebar-badge">Soon</span>

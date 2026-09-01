@@ -308,10 +308,17 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td class="text-center">
                                             <?php echo get_loan_status_badge($cl['status']); ?>
                                         </td>
-                                        <td class="pe-3 text-end">
-                                            <a href="<?php echo url('modules/loans/view.php?id=' . $cl['id']); ?>" class="btn btn-sm btn-outline-secondary" title="View Loan Details">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
+                                        <td class="pe-3 text-end text-nowrap">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="<?php echo url('modules/loans/view.php?id=' . $cl['id']); ?>" class="btn btn-outline-secondary" title="View Loan Details" data-bs-toggle="tooltip">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <?php if ($cl['status'] === 'active' || $cl['status'] === 'completed'): ?>
+                                                    <a href="<?php echo url('modules/repayments/view.php?loan_id=' . $cl['id']); ?>" class="btn btn-outline-primary" title="Repayment Ledger" data-bs-toggle="tooltip">
+                                                        <i class="bi bi-wallet2"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

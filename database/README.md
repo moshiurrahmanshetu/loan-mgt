@@ -14,6 +14,7 @@ Step 2: database/customers.sql      (Creates customers table with FK to users.id
 Step 3: database/loan_products.sql  (Creates loan_products table with FK to users.id)
 Step 4: database/loans.sql          (Creates loans table with FK to customers, loan_products, users)
 Step 5: database/disbursement.sql   (Extends loans table & creates loan_installments with FK to loans.id)
+Step 6: database/payments.sql       (Extends loans status & creates loan_payments with FK to loans, installments, customers, users)
 ```
 
 ---
@@ -109,7 +110,7 @@ Creates the `loans` table storing loan applications, product parameter snapshots
 * `estimated_total_payable` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
 * `purpose` TEXT NULL
 * `application_date` DATE NOT NULL
-* `status` ENUM('draft', 'pending', 'approved', 'active', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'
+* `status` ENUM('draft', 'pending', 'approved', 'active', 'completed', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'
 * `notes` TEXT NULL
 * `rejection_reason` TEXT NULL
 * `created_by` INT UNSIGNED NULL (FK -> `users.id`)
@@ -150,6 +151,26 @@ Extends the `loans` table with disbursement audit fields and creates `loan_insta
 
 ---
 
+## 6. Phase 5 Schema: `payments.sql`
+
+Extends `loans.status` with `'completed'` and creates `loan_payments` table for recording repayment transactions.
+
+### Table: `loan_payments`
+* `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+* `payment_reference` VARCHAR(30) NOT NULL UNIQUE (e.g. `PAY-000001`)
+* `loan_id` INT UNSIGNED NOT NULL (FK -> `loans.id` ON DELETE RESTRICT)
+* `installment_id` INT UNSIGNED NOT NULL (FK -> `loan_installments.id` ON DELETE RESTRICT)
+* `customer_id` INT UNSIGNED NOT NULL (FK -> `customers.id` ON DELETE RESTRICT)
+* `payment_date` DATE NOT NULL
+* `amount` DECIMAL(12, 2) NOT NULL
+* `payment_method` ENUM('cash', 'bank_transfer', 'mobile_banking') NOT NULL DEFAULT 'cash'
+* `notes` TEXT NULL
+* `collected_by` INT UNSIGNED NOT NULL (FK -> `users.id` ON DELETE RESTRICT)
+* `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+* `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+---
+
 ## How to Import via CLI (Fresh Database)
 
 ```bash
@@ -167,4 +188,7 @@ C:\xampp\mysql\bin\mysql.exe -u root -p < database/loans.sql
 
 # 5. Import Phase 4: Disbursement & Repayment Schedule Schema
 C:\xampp\mysql\bin\mysql.exe -u root -p < database/disbursement.sql
+
+# 6. Import Phase 5: Repayments & Payment Collection Schema
+C:\xampp\mysql\bin\mysql.exe -u root -p < database/payments.sql
 ```

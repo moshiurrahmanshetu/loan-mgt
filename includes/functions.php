@@ -458,8 +458,27 @@ function get_loan_status_badge(string $status): string
         'pending'   => 'badge-status-pending',
         'approved'  => 'badge-status-approved',
         'active'    => 'badge-status-active',
+        'completed' => 'badge-status-completed',
         'rejected'  => 'badge-status-rejected',
         'cancelled' => 'badge-status-cancelled',
+    ];
+    $cls = $classes[$status] ?? 'bg-secondary text-white';
+    return '<span class="badge ' . $cls . '">' . e(ucfirst($status)) . '</span>';
+}
+
+/**
+ * Returns Bootstrap badge HTML for installment payment statuses.
+ *
+ * @param string $status
+ * @return string
+ */
+function get_installment_status_badge(string $status): string
+{
+    $classes = [
+        'pending' => 'badge-status-pending',
+        'partial' => 'badge-status-partial',
+        'paid'    => 'badge-status-paid',
+        'overdue' => 'badge-status-overdue',
     ];
     $cls = $classes[$status] ?? 'bg-secondary text-white';
     return '<span class="badge ' . $cls . '">' . e(ucfirst($status)) . '</span>';
@@ -507,6 +526,54 @@ function can_approve_loans(): bool
 function can_disburse_loans(): bool
 {
     return has_role(['admin', 'manager']);
+}
+
+/**
+ * Role Check: Whether current user can collect repayments.
+ * Allowed: Admin, Manager, Collector. (Loan Officer is blocked).
+ *
+ * @return bool
+ */
+function can_collect_payments(): bool
+{
+    return has_role(['admin', 'manager', 'collector']);
+}
+
+/**
+ * Generates the next sequential unique payment reference.
+ * Format: PAY-000001
+ *
+ * @param PDO $db
+ * @return string
+ */
+function generate_payment_reference(PDO $db): string
+{
+    $stmt = $db->query("SELECT payment_reference FROM loan_payments ORDER BY id DESC LIMIT 1");
+    $lastRef = $stmt->fetchColumn();
+
+    if ($lastRef && preg_match('/^PAY-(\d+)$/', $lastRef, $matches)) {
+        $nextNum = (int)$matches[1] + 1;
+    } else {
+        $nextNum = 1;
+    }
+
+    return sprintf('PAY-%06d', $nextNum);
+}
+
+/**
+ * Returns human-friendly label for payment methods.
+ *
+ * @param string $method
+ * @return string
+ */
+function get_payment_method_label(string $method): string
+{
+    $labels = [
+        'cash'           => 'Cash',
+        'bank_transfer'  => 'Bank Transfer',
+        'mobile_banking' => 'Mobile Banking',
+    ];
+    return $labels[$method] ?? ucfirst(str_replace('_', ' ', $method));
 }
 
 /**
